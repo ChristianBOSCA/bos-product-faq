@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Bells of Steel — Product FAQ</title>
 <link rel="stylesheet" href="styles.css" />
-<script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 </head>
 <body>
 <header class="topbar">
@@ -16,8 +15,11 @@
 <main id="app">
   <div id="gate" class="gate hidden">
     <h1>Product FAQ</h1>
-    <p>Internal tool. Please sign in to continue.</p>
-    <button id="loginBtn" class="btn primary">Sign in</button>
+    <p>Enter your name so answers can be credited to you.</p>
+    <div class="gateform">
+      <input id="nameInput" type="text" placeholder="e.g. Christian Bell" autocomplete="name" />
+      <button id="enterBtn" class="btn primary">Continue</button>
+    </div>
   </div>
 
   <div id="main" class="hidden">

@@ -1,13 +1,14 @@
 /* Netlify Function: FAQ data API backed by Google Sheets.
  *
- * Auth: requires a valid Netlify Identity token. The signed-in user's email
- * is used for attribution (created_by / answered_by / approved_by). Approving
- * requires the "teamlead" role (granted in Netlify Identity).
+ * Attribution: the caller sends their picked name in the request body ("actor").
+ * It is recorded as created_by / answered_by / approved_by.
  *
  * Env vars (set in Netlify → Site settings → Environment):
  *   GOOGLE_CLIENT_EMAIL   service-account email
  *   GOOGLE_PRIVATE_KEY    service-account private key (keep the \n escapes)
  *   SHEET_ID              the spreadsheet id (the long string in the Sheet URL)
+ *   LEAD_PIN              OPTIONAL — if set, approving requires this PIN. Leave
+ *                         unset and anyone may approve (just attributed).
  *
  * Sheet must have a tab named "FAQ". Headers are auto-created on first call.
  */
@@ -78,11 +79,9 @@ async function audit(sheets, id, actor, action, qid, detail){
 }
 
 exports.handler = async (event, context) => {
-  const user = context.clientContext && context.clientContext.user;
-  if(!user) return text(401, "Sign in required.");
-  const actor = (user.user_metadata && user.user_metadata.full_name) || user.email || "unknown";
-  const roles = (user.app_metadata && user.app_metadata.roles) || [];
-  const lead = roles.includes("teamlead");
+  let body = {};
+  if(event.httpMethod === "POST"){ try { body = JSON.parse(event.body || "{}"); } catch(e){ return text(400, "Bad JSON."); } }
+  const actor = (body.actor ? String(body.actor) : "unknown").slice(0, 60);
 
   const id = process.env.SHEET_ID;
   if(!id || !process.env.GOOGLE_CLIENT_EMAIL) return text(500, "Server not configured (missing SHEET_ID / service account).");
@@ -97,7 +96,6 @@ exports.handler = async (event, context) => {
     }
 
     if(event.httpMethod === "POST"){
-      const body = JSON.parse(event.body || "{}");
       const action = body.action;
 
       if(action === "add"){
@@ -126,7 +124,7 @@ exports.handler = async (event, context) => {
         return json(200, { ok:true });
       }
       if(action === "approve"){
-        if(!lead) return text(403, "Only a Team Lead can approve.");
+        if(process.env.LEAD_PIN && body.lead_pin !== process.env.LEAD_PIN) return text(403, "Team Lead PIN required or incorrect.");
         o.status = "approved"; o.approved_by = actor; o.last_verified_at = nowISO();
         await writeRow(sheets, id, target._row, o);
         await audit(sheets, id, actor, "approve", o.id, "");

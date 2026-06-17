@@ -68,19 +68,19 @@ Netlify → Site settings → Environment variables → add three:
 | `SHEET_ID` | the spreadsheet ID from Step 1 |
 | `GOOGLE_CLIENT_EMAIL` | `client_email` from the service-account JSON |
 | `GOOGLE_PRIVATE_KEY` | `private_key` from the JSON — paste it exactly, including the `\n` characters |
+| `LEAD_PIN` | OPTIONAL — a short PIN. If set, only people who enter it can tick "Approve". Leave it out entirely and anyone can approve (the app still records who did). |
 
 Then trigger a redeploy so the functions pick up the variables.
 
-## Step 5 — Turn on Netlify Identity (team login + attribution)
+## Step 5 — Sign-in (none needed)
 
-1. Netlify → your site → **Identity → Enable Identity**.
-2. Registration: set to **Invite only** (this is an internal tool).
-3. **Invite your team** (Identity → Invite users). Each person sets a password on first login;
-   their name/email becomes the attribution (initials + date) on answers.
-4. **Team Lead approval rights:** open the lead's user under Identity → edit **Roles** → add the
-   role `teamlead`. Only users with that role can tick the approve box (enforced server-side, so
-   it can't be bypassed from the browser). Change the role over to a new person whenever the lead
-   changes.
+There is no account login. The first time someone opens the site they type their name once; it's
+remembered in their browser and used for attribution (initials + date) on answers. The "not you?"
+link in the header lets them switch.
+
+If you set the optional `LEAD_PIN` above, the app asks for it the first time someone ticks
+"Approve" and remembers it on that device — a lightweight way to keep approving to whoever knows
+the PIN, without a full login system. Change the PIN value any time the lead changes.
 
 ## Step 6 — Test it
 

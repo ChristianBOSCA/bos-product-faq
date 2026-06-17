@@ -1,25 +1,16 @@
-/* Bells of Steel — internal Product FAQ. Frontend logic. */
+/* Bells of Steel — internal Product FAQ. Frontend logic.
+ * Open access (no account login): each person enters their name once for
+ * attribution. Approving may optionally require a Team Lead PIN (if the site
+ * is configured with one); the app asks for it the first time and remembers it. */
 const API = "/.netlify/functions/faq";
 let CATALOG = [];
 let CURRENT = null;      // current product object
 let ROWS = [];           // all FAQ rows from the sheet
 let TAB = "unanswered";
-let USER = null;         // netlify identity user
+let USER_NAME = localStorage.getItem("faq_name") || "";
+let LEAD_PIN = localStorage.getItem("faq_leadpin") || "";
 
-/* ---------- identity ---------- */
-const identity = window.netlifyIdentity;
-identity.on("init", u => { USER = u; paintUser(); route(); });
-identity.on("login", u => { USER = u; identity.close(); paintUser(); route(); });
-identity.on("logout", () => { USER = null; paintUser(); route(); });
-identity.init();
-
-function isLead(){
-  try { return (USER.app_metadata.roles || []).includes("teamlead"); } catch(e){ return false; }
-}
-function displayName(){
-  if(!USER) return "";
-  return (USER.user_metadata && USER.user_metadata.full_name) || USER.email || "";
-}
+/* ---------- identity (name only) ---------- */
 function initials(name){
   if(!name) return "?";
   const parts = name.replace(/@.*/,"").split(/[ ._-]+/).filter(Boolean);
@@ -28,25 +19,30 @@ function initials(name){
 }
 function paintUser(){
   const box = document.getElementById("userbox");
-  if(USER){
-    box.innerHTML = `<span class="who">${initials(displayName())}</span>${isLead()?'<span>· Team Lead</span>':''} · <a href="#" id="logout" class="link">sign out</a>`;
-    document.getElementById("logout").onclick = e => { e.preventDefault(); identity.logout(); };
-  } else { box.innerHTML = ""; }
+  if(USER_NAME){
+    box.innerHTML = `<span class="who">${esc(initials(USER_NAME))}</span> <span>${esc(USER_NAME)}</span> · <a href="#" id="changeName" class="link">not you?</a>`;
+    document.getElementById("changeName").onclick = e => { e.preventDefault(); USER_NAME=""; localStorage.removeItem("faq_name"); paintUser(); route(); };
+  } else box.innerHTML = "";
 }
 function route(){
-  const authed = !!USER;
-  document.getElementById("gate").classList.toggle("hidden", authed);
-  document.getElementById("main").classList.toggle("hidden", !authed);
-  if(authed && CATALOG.length===0) boot();
+  const ok = !!USER_NAME;
+  document.getElementById("gate").classList.toggle("hidden", ok);
+  document.getElementById("main").classList.toggle("hidden", !ok);
+  paintUser();
+  if(ok && CATALOG.length===0) boot();
 }
-document.getElementById("loginBtn").onclick = () => identity.open();
+function setName(){
+  const v = document.getElementById("nameInput").value.trim();
+  if(v.length<2){ toast("Please enter your name", true); return; }
+  USER_NAME = v; localStorage.setItem("faq_name", v); route();
+}
+document.getElementById("enterBtn").onclick = setName;
+document.getElementById("nameInput").addEventListener("keydown", e=>{ if(e.key==="Enter") setName(); });
 
 /* ---------- boot ---------- */
 async function boot(){
-  try {
-    const res = await fetch("catalog.json");
-    CATALOG = (await res.json()).products || [];
-  } catch(e){ toast("Could not load catalog.json", true); }
+  try { const res = await fetch("catalog.json"); CATALOG = (await res.json()).products || []; }
+  catch(e){ toast("Could not load catalog.json", true); }
 }
 
 /* ---------- toast ---------- */
@@ -54,7 +50,7 @@ let toastTimer;
 function toast(msg, err){
   const t = document.getElementById("toast");
   t.textContent = msg; t.className = "toast" + (err?" err":"");
-  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.add("hidden"), 2600);
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.add("hidden"), 2800);
 }
 
 /* ---------- fuzzy search ---------- */
@@ -89,9 +85,6 @@ document.addEventListener("click", e => { if(!suggBox.contains(e.target) && e.ta
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 const GENERIC = new Set(["bench","attachment","attachments","adapter","set","pair","only","with","the","and","bundle","ultimate","full","length","shaft","single","pack","save","holes","steel","sleeves","title","default","this","that","does","what","when","include","included"]);
 function variantTokens(v){ return tok(v.title).filter(w=>w.length>3 && !GENERIC.has(w)); }
-/* Frequency-aware routing: a question token that appears in only one variant
- * (e.g. "preacher") outweighs one shared across many (e.g. "curl"). Returns the
- * best-matching variant only when the match is confident, else null. */
 function routeVariant(product, text){
   const qt = tok(text).filter(w=>w.length>3 && !GENERIC.has(w));
   if(!qt.length) return null;
@@ -106,24 +99,19 @@ function routeVariant(product, text){
     const frac = m/Math.max(vt.length,1);
     if(s > bestScore+1e-9 || (Math.abs(s-bestScore)<1e-9 && frac>bestFrac)){ best=v; bestScore=s; bestFrac=frac; }
   }
-  return bestScore >= 0.5 ? best : null;  // need a distinctive or multi-word match
+  return bestScore >= 0.5 ? best : null;
 }
 
 /* ---------- API ---------- */
 async function apiGet(){
-  const res = await fetch(API, { headers: await authHeader() });
+  const res = await fetch(API);
   if(!res.ok) throw new Error(await res.text());
-  const data = await res.json();
-  ROWS = data.rows || [];
+  ROWS = (await res.json()).rows || [];
 }
 async function apiPost(body){
-  const res = await fetch(API, { method:"POST", headers: { "Content-Type":"application/json", ...(await authHeader()) }, body: JSON.stringify(body) });
-  if(!res.ok){ const msg = await res.text(); throw new Error(msg || res.status); }
+  const res = await fetch(API, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ actor: USER_NAME, ...body }) });
+  if(!res.ok){ throw new Error((await res.text()) || res.status); }
   return res.json();
-}
-async function authHeader(){
-  try { const t = await identity.refresh(); return { Authorization: "Bearer " + t }; }
-  catch(e){ if(USER && USER.token) return { Authorization: "Bearer " + USER.token.access_token }; return {}; }
 }
 
 /* ---------- product view ---------- */
@@ -194,8 +182,7 @@ function skuChip(s){ return s ? `<span class="sku">${esc(s)}</span>` : `<span cl
 function renderList(){
   const list = rowsForProduct().filter(r=>r.status===TAB);
   const ql = document.getElementById("qlist");
-  if(!list.length){ ql.innerHTML = `<div class="spin">Nothing in ${TAB.replace("pending","pending approval")}.</div>`; return; }
-  const lead = isLead();
+  if(!list.length){ ql.innerHTML = `<div class="spin">Nothing in ${TAB==="pending"?"pending approval":TAB}.</div>`; return; }
   ql.innerHTML = list.map(r=>{
     let ans;
     if(r.status==="unanswered"){
@@ -205,7 +192,7 @@ function renderList(){
       ans = `<div class="ans">${esc(r.answer)}</div>${r.source_link?`<div style="margin-top:4px"><a class="link" href="${esc(r.source_link)}" target="_blank" rel="noopener">source ↗</a></div>`:""}`;
     }
     let ctrls = "";
-    if(r.status==="pending") ctrls = `<label class="check ${lead?'':'disabled'}"><input type="checkbox" data-appr="${r.id}" ${lead?'':'disabled'}> Team Lead approve</label>`;
+    if(r.status==="pending") ctrls = `<label class="check"><input type="checkbox" data-appr="${r.id}"> Approve</label>`;
     if(r.status==="approved") ctrls = `<button class="btn sm" data-edit="${r.id}">Edit (re-approval)</button>`;
     return `<div class="qitem ${r.status==='pending'?'pending':''}">
       <div class="qtop"><span class="qtext">${esc(r.question)}</span>${skuChip(r.variant_sku)}</div>
@@ -218,7 +205,7 @@ function renderList(){
   ql.querySelectorAll("[data-ans]").forEach(inp=>inp.addEventListener("keydown", e=>{
     if(e.key==="Enter" && inp.value.trim()){ const src=ql.querySelector(`[data-src="${inp.dataset.ans}"]`); submitAnswer(inp.dataset.ans, inp.value.trim(), src?src.value.trim():""); }
   }));
-  ql.querySelectorAll("[data-appr]").forEach(c=>c.onchange=()=>mutate({action:"approve", id:c.dataset.appr}, "approved", "Approved"));
+  ql.querySelectorAll("[data-appr]").forEach(c=>c.onchange=()=>approve(c.dataset.appr));
   ql.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>mutate({action:"unapprove", id:b.dataset.edit}, "pending", "Moved back to pending"));
   ql.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ if(confirm("Delete this question?")) mutate({action:"delete", id:b.dataset.del}, null, "Deleted"); });
 }
@@ -226,7 +213,22 @@ async function submitAnswer(id, answer, source_link){
   try { await apiPost({ action:"answer", id, answer, source_link }); await apiGet(); TAB="pending"; renderTabs(); renderList(); toast("Answer saved — pending approval"); }
   catch(e){ toast("Save failed: "+e.message, true); }
 }
+async function approve(id){
+  try {
+    await apiPost({ action:"approve", id, lead_pin: LEAD_PIN });
+    await apiGet(); TAB="approved"; renderTabs(); renderList(); toast("Approved");
+  } catch(e){
+    if(/PIN/i.test(e.message)){
+      const pin = prompt("Team Lead PIN required to approve:");
+      if(pin){ LEAD_PIN = pin; localStorage.setItem("faq_leadpin", pin); return approve(id); }
+      renderList();
+    } else { toast("Approve failed: "+e.message, true); renderList(); }
+  }
+}
 async function mutate(body, gotoTab, okMsg){
   try { await apiPost(body); await apiGet(); if(gotoTab) TAB=gotoTab; renderTabs(); renderList(); toast(okMsg); }
   catch(e){ toast("Action failed: "+e.message, true); }
 }
+
+/* ---------- start ---------- */
+route();

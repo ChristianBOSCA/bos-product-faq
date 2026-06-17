@@ -23,6 +23,9 @@ main{max-width:860px;margin:0 auto;padding:24px 20px 80px}
 .gate{text-align:center;padding:60px 20px}
 .gate h1{margin:0 0 6px}
 .gate p{color:var(--muted)}
+.gateform{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.gateform input{padding:10px 12px;border:1px solid var(--line2);border-radius:var(--radius);font-size:15px;min-width:260px;background:var(--surface)}
+.gateform input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(31,42,55,.08)}
 
 .searchwrap{position:relative}
 #q{width:100%;padding:11px 14px;font-size:15px;border:1px solid var(--line2);border-radius:var(--radius);background:var(--surface)}

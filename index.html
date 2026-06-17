@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bells of Steel — Product FAQ</title>
+<link rel="stylesheet" href="styles.css" />
+<script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="dot"></span> Product FAQ <span class="sub">internal knowledge base</span></div>
+  <div class="userbox" id="userbox"></div>
+</header>
+
+<main id="app">
+  <div id="gate" class="gate hidden">
+    <h1>Product FAQ</h1>
+    <p>Internal tool. Please sign in to continue.</p>
+    <button id="loginBtn" class="btn primary">Sign in</button>
+  </div>
+
+  <div id="main" class="hidden">
+    <div class="searchwrap">
+      <input id="q" type="text" placeholder="Search SKU or product name (typos OK)…" autocomplete="off" />
+      <div id="sugg" class="sugg hidden"></div>
+    </div>
+    <div class="note">Catalog read-only from Plytix · Shopify · Brightpearl. Questions &amp; answers stored in the linked Google Sheet.</div>
+    <div id="panel" class="panel">
+      <div class="empty">
+        <p>Search a product or SKU to begin.</p>
+        <p class="hint">Try "buzz-saw", "BSAW", "kettlebell", or "pob"</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+{
+  "generated_at": "2026-06-16",
+  "source": "Shopify (us) read-only snapshot — refresh via export",
+  "products": [
+    { "id": "7818627285189", "title": "Buzz-Saw Heavy-Duty Adjustable Bench", "type": "Bench", "src": "Shopify · Plytix · Brightpearl",
+      "variants": [
+        { "sku": "BSAW-BEN-SET", "title": "Bench Only (No Attachments)" },
+        { "sku": "BSAW-ADP-LELC-SET", "title": "Bench + Leg Extension/Leg Curl Attachment + Adapter" },
+        { "sku": "BSAW-ADP-LGRL-SET", "title": "Bench + Leg Roller Attachment + Adapter" },
+        { "sku": "BSAW-ADP-LGRL-LELC-SET", "title": "Bench + Leg Extension/Leg Curl + Leg Roller Attachment + Adapter" },
+        { "sku": "BSAW-PREA-ADP-BA-SET", "title": "Bench + Preacher Curl Attachment + Adapter" },
+        { "sku": "BSAW-ULTMT-BNDL-SET", "title": "Ultimate Bundle (all attachments + adapter)" }
+      ] },
+    { "id": "7818625384645", "title": "Soft Glute Bench", "type": "Bench", "src": "Shopify · Plytix",
+      "variants": [
+        { "sku": "GLUTE-BEN", "title": "Soft Glute Bench Only (No Bands or Straps)" },
+        { "sku": "GLUTE-BEN-W-BANDS-SET", "title": "Soft Glute Bench with Band + Strap Pack" },
+        { "sku": "GLT-BEN-BANDS", "title": "Band + Strap Pack Only (No Bench)" }
+      ] },
+    { "id": "7818621518021", "title": "Barenaked Powerlifting Bar", "type": "Barbell", "src": "Shopify · Plytix",
+      "variants": [
+        { "sku": "POB2", "title": "Bare Steel Shaft + Hard Chrome Sleeves" },
+        { "sku": "BLK-POB2", "title": "Black Cerakote Shaft + Sleeves" }
+      ] },
+    { "id": "7818626334917", "title": "Open Trap Bar / Hex Bar", "type": "Barbell", "src": "Shopify · Plytix",
+      "variants": [ { "sku": "HB1", "title": "Open Trap Bar / Hex Bar" } ] },
+    { "id": "7818619617477", "title": "Powder Coated Kettlebells", "type": "Kettlebell", "src": "Shopify · Plytix",
+      "variants": [
+        { "sku": "PCKB4", "title": "4 KG / 9 LB" },
+        { "sku": "PCKB6", "title": "6 KG / 13 LB" },
+        { "sku": "PCKB8", "title": "8 KG / 18 LB" },
+        { "sku": "PCKB10", "title": "10 KG / 22 LB" }
+      ] },
+    { "id": "7818629611717", "title": "Urethane-Coated Change Plates", "type": "Weight Plate", "src": "Shopify · Plytix",
+      "variants": [
+        { "sku": "LB-CHG-P1.25", "title": "1.25 LB (Pair)" },
+        { "sku": "LB-CHG-P2.5", "title": "2.5 LB (Pair)" },
+        { "sku": "LB-CHG-P5", "title": "5 LB (Pair)" },
+        { "sku": "LB-CHG-P10", "title": "10 LB (Pair)" },
+        { "sku": "KG-CHG-P0.5", "title": "0.5 KG (Pair)" },
+        { "sku": "KG-CHG-P1", "title": "1 KG (Pair)" },
+        { "sku": "KG-CHG-P2.5", "title": "2.5 KG (Pair)" },
+        { "sku": "KG-CHG-P5", "title": "5 KG (Pair)" }
+      ] },
+    { "id": "7818644586693", "title": "Colored Bumper Plates", "type": "Weight Plate", "src": "Shopify · Plytix",
+      "variants": [
+        { "sku": "CLR-BP-10", "title": "10 LB (Pair)" },
+        { "sku": "CLR-BP-15", "title": "15 LB (Pair)" },
+        { "sku": "CLR-BP-25-PAIR", "title": "25 LB (Pair)" },
+        { "sku": "CLR-BP-35-PAIR", "title": "35 LB (Pair)" },
+        { "sku": "CLR-BP-45-PAIR", "title": "45 LB (Pair)" },
+        { "sku": "CLR-BP-55-PAIR", "title": "55 LB (Pair)" }
+      ] },
+    { "id": "7818633707717", "title": "Bumper Plate Weight Tree And Bar Holder", "type": "Storage", "src": "Shopify · Plytix",
+      "variants": [ { "sku": "BPT", "title": "Bumper Plate Weight Tree And Bar Holder" } ] },
+    { "id": "7818620666053", "title": "Pin Plate Pegs", "type": "Storage Rack Attachment", "src": "Shopify · Plytix",
+      "variants": [
+        { "sku": "PEG-RA", "title": "2.3\" x 2.3\" (5/8\" Holes)" },
+        { "sku": "PN-PG-RA-HDR", "title": "Hydra (3\" x 3\"; 5/8\" Holes)" },
+        { "sku": "FPP-RA-MTC", "title": "Manticore (3\" x 3\"; 1\" Holes)" }
+      ] },
+    { "id": "7818621190341", "title": "Magnetic Rack Attachment Pins", "type": "Rack Component", "src": "Shopify · Plytix",
+      "variants": [
+        { "sku": "MAG-PIN-HDR", "title": "Hydra - Full Length 5.0\" Shaft / Single" },
+        { "sku": "MAG-PIN-HDR-4PK", "title": "Hydra - Full Length 5.0\" Shaft / 4 Pack" },
+        { "sku": "PIN-MAG-MTC", "title": "Manticore - Full Length 5.1\" Shaft / Single" },
+        { "sku": "S-PIN-MAG-MTC", "title": "Manticore - Shorty 1.4\" Shaft / Single" }
+      ] },
+    { "id": "7818622533829", "title": "Pin Pipe Safeties", "type": "Strength Rack Attachment", "src": "Shopify · Plytix",
+      "variants": [
+        { "sku": "43-PPS-RA-HDR", "title": "Hydra / 43\" (Pair)" },
+        { "sku": "30-PPS-RA-HDR", "title": "Hydra / 30\" (Pair)" },
+        { "sku": "43-PIN-MTC", "title": "Manticore / 43\" (Pair)" },
+        { "sku": "30-PIN-MTC", "title": "Manticore / 30\" (Pair)" }
+      ] },
+    { "id": "7818626695365", "title": "Belt Squat / Lever Arms Rack Attachment", "type": "Strength Rack Attachment", "src": "Shopify · Plytix",
+      "variants": [
+        { "sku": "BNDL-BQT-LVRA-RA", "title": "2.3\" x 2.3\" (5/8\" Holes)" },
+        { "sku": "SET-LEV-SQT-HDR", "title": "Hydra (3\" x 3\"; 5/8\" Holes)" }
+      ] }
+  ]
+}

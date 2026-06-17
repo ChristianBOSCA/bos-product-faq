@@ -1,0 +1,9 @@
+{
+  "name": "bos-product-faq",
+  "version": "1.0.0",
+  "description": "Bells of Steel internal product FAQ — Netlify + Google Sheets",
+  "private": true,
+  "dependencies": {
+    "googleapis": "^140.0.1"
+  }
+}

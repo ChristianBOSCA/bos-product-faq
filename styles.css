@@ -154,6 +154,12 @@ main{max-width:860px;margin:0 auto;padding:24px 20px 80px}
 .stale{font-size:11px;background:var(--amber-bg);color:var(--amber-fg);padding:1px 7px;border-radius:6px;margin-right:auto}
 .qitem.editing{background:var(--bg)}
 .edlbl{display:block;font-size:11px;color:var(--muted);margin:4px 0 3px}
-.ed-q,.ed-a{width:100%;box-sizing:border-box;border:1px solid var(--line2);border-radius:6px;padding:7px 9px;font-size:13px;font-family:inherit;background:#fff}
+.ed-q,.ed-a,.mv-q{width:100%;box-sizing:border-box;border:1px solid var(--line2);border-radius:6px;padding:7px 9px;font-size:13px;font-family:inherit;background:#fff}
+.mv-results{border:1px solid var(--line);border-radius:6px;margin:6px 0;max-height:220px;overflow:auto}
+.mv-results:empty{display:none}
+.mvrow{padding:7px 10px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--line)}
+.mvrow:last-child{border-bottom:none}
+.mvrow:hover{background:var(--bg)}
+.mvrow .meta{color:var(--faint);font-size:12px}
 .ed-a{resize:vertical;margin-bottom:6px}
 .qctrls .hint{font-size:11px;color:var(--faint);align-self:center}

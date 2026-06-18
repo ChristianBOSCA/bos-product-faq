@@ -124,6 +124,9 @@ exports.handler = async (event, context) => {
         return json(200, { ok:true });
       }
       if(action === "edit"){
+        if(body.product_id != null) o.product_id = String(body.product_id);
+        if(body.product_title != null) o.product_title = String(body.product_title);
+        if(body.variant_sku != null) o.variant_sku = String(body.variant_sku);
         if(body.question != null) o.question = String(body.question);
         if(body.answer != null){
           const newAns = String(body.answer);

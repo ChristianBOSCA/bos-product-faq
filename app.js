@@ -272,6 +272,7 @@ async function saveQuestion(){
 /* ---------- question list ---------- */
 function skuChip(s){ return s ? `<span class="sku">${esc(s)}</span>` : `<span class="stamp" style="margin-left:0">whole product</span>`; }
 let EDITING = null;
+let MOVING = null;
 function fmt(a){ return esc(a).replace(/\n/g,"<br>"); }
 function staleBadge(r){
   if(r.status!=="approved" || !r.last_verified_at) return "";
@@ -301,9 +302,19 @@ function renderList(){
     } else {
       ans = `<div class="ans">${fmt(r.answer)}</div>${r.source_link?`<div style="margin-top:4px"><a class="link" href="${esc(r.source_link)}" target="_blank" rel="noopener">source ↗</a></div>`:""}`;
     }
+    if(MOVING===r.id){
+      return `<div class="qitem editing">
+        <div class="qtop"><span class="qtext">${esc(r.question)}</span></div>
+        <label class="edlbl">Move to which product?</label>
+        <input class="mv-q" data-mvq="${r.id}" placeholder="Search a product…" autocomplete="off" />
+        <div class="mv-results" data-mvr="${r.id}"></div>
+        <div class="qctrls"><button class="btn sm" data-mvcancel="1">Cancel</button><span class="hint">currently under: ${esc(r.product_title||r.product_id)}</span></div>
+      </div>`;
+    }
     let ctrls = "";
     if(r.status==="pending") ctrls += `<label class="check"><input type="checkbox" data-appr="${r.id}"> Approve</label>`;
     ctrls += `<button class="btn sm" data-edit="${r.id}">Edit</button>`;
+    ctrls += `<button class="btn sm" data-move="${r.id}">Move</button>`;
     if(r.status!=="unanswered") ctrls += `<button class="btn sm" data-copy="${r.id}">Copy</button>`;
     return `<div class="qitem ${r.status==='pending'?'pending':''}">
       <div class="qtop"><span class="qtext">${esc(r.question)}</span>${skuChip(r.variant_sku)}</div>
@@ -317,8 +328,21 @@ function renderList(){
     if(e.key==="Enter" && inp.value.trim()){ const src=ql.querySelector(`[data-src="${inp.dataset.ans}"]`); submitAnswer(inp.dataset.ans, inp.value.trim(), src?src.value.trim():""); }
   }));
   ql.querySelectorAll("[data-appr]").forEach(c=>c.onchange=()=>approve(c.dataset.appr));
-  ql.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{ EDITING=b.dataset.edit; renderList(); });
+  ql.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{ EDITING=b.dataset.edit; MOVING=null; renderList(); });
   ql.querySelectorAll("[data-cancel]").forEach(b=>b.onclick=()=>{ EDITING=null; renderList(); });
+  ql.querySelectorAll("[data-move]").forEach(b=>b.onclick=()=>{ MOVING=b.dataset.move; EDITING=null; renderList(); });
+  ql.querySelectorAll("[data-mvcancel]").forEach(b=>b.onclick=()=>{ MOVING=null; renderList(); });
+  const mvIn = ql.querySelector("[data-mvq]");
+  if(mvIn){
+    mvIn.focus();
+    mvIn.addEventListener("input", ()=>{
+      const t=mvIn.value.trim(), res=ql.querySelector(`[data-mvr="${mvIn.dataset.mvq}"]`);
+      if(!t){ res.innerHTML=""; return; }
+      const hits=CATALOG.map(p=>[p,score(p,t)]).filter(x=>x[1]>=.45).sort((a,b)=>b[1]-a[1]).slice(0,6);
+      res.innerHTML = hits.length ? hits.map(([p])=>`<div class="mvrow" data-mvpick="${esc(p.id)}">${esc(p.title)} <span class="meta">${esc(p.type)}</span></div>`).join("") : '<div class="meta" style="padding:7px 10px">No match</div>';
+      res.querySelectorAll("[data-mvpick]").forEach(el=>el.onclick=()=>{ const p=CATALOG.find(x=>x.id===el.dataset.mvpick); reassign(mvIn.dataset.mvq, p); });
+    });
+  }
   ql.querySelectorAll("[data-save]").forEach(b=>b.onclick=()=>{ const id=b.dataset.save; const q=ql.querySelector(`[data-eq="${id}"]`).value.trim(); const a=ql.querySelector(`[data-ea="${id}"]`).value.trim(); editItem(id,q,a); });
   ql.querySelectorAll("[data-copy]").forEach(b=>b.onclick=()=>{ const r=ROWS.find(x=>x.id===b.dataset.copy); if(r) navigator.clipboard.writeText(r.answer||"").then(()=>toast("Answer copied")).catch(()=>toast("Copy failed",true)); });
   ql.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ if(confirm("Delete this question?")) mutate({action:"delete", id:b.dataset.del}, null, "Deleted"); });
@@ -327,6 +351,11 @@ async function editItem(id,q,a){
   if(!q){ toast("Question can't be empty", true); return; }
   try { await apiPost({action:"edit", id, question:q, answer:a}); EDITING=null; await apiGet(); renderTabs(); renderList(); toast("Saved"); }
   catch(e){ toast("Save failed: "+e.message, true); }
+}
+async function reassign(id, p){
+  if(!p) return;
+  try { await apiPost({action:"edit", id, product_id:p.id, product_title:p.title, variant_sku:""}); MOVING=null; await apiGet(); renderTabs(); renderList(); toast("Moved to "+p.title); }
+  catch(e){ toast("Move failed: "+e.message, true); }
 }
 async function submitAnswer(id, answer, source_link){
   try { await apiPost({ action:"answer", id, answer, source_link }); await apiGet(); TAB="pending"; renderTabs(); renderList(); toast("Answer saved — pending approval"); }

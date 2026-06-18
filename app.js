@@ -51,7 +51,39 @@ async function boot(){
     try { const r = await fetch("/.netlify/functions/catalog"); CATALOG = (await r.json()).products || []; }
     catch(e2){ toast("Could not load catalog", true); }
   }
+  try { await apiGet(); } catch(e){ /* questions load for dashboard + global search */ }
+  if(!CURRENT) renderDashboard();
+  const bEl = document.querySelector(".brand");
+  if(bEl){ bEl.style.cursor = "pointer"; bEl.title = "Home"; bEl.onclick = goHome; }
 }
+function titleFor(id){ const p = CATALOG.find(x=>x.id===id); return p ? p.title : id; }
+async function goHome(){
+  CURRENT = null; suggBox.classList.add("hidden"); qInput.value = "";
+  try { await apiGet(); } catch(e){}
+  renderDashboard();
+}
+function renderDashboard(){
+  const pend = ROWS.filter(r=>r.status==="pending");
+  const un   = ROWS.filter(r=>r.status==="unanswered");
+  const appr = ROWS.filter(r=>r.status==="approved");
+  const panel = document.getElementById("panel");
+  panel.innerHTML = `
+    <div class="dash">
+      <div class="stats">
+        <div class="stat" data-go="pending"><div class="n">${pend.length}</div><div class="l">Pending approval</div></div>
+        <div class="stat" data-go="unanswered"><div class="n">${un.length}</div><div class="l">Unanswered</div></div>
+        <div class="stat"><div class="n">${appr.length}</div><div class="l">Approved</div></div>
+      </div>
+      ${pend.length ? `<div class="queue"><div class="qh">Waiting for a lead's approval</div>${pend.slice(0,25).map(r=>`<div class="qrow" data-pid="${esc(r.product_id)}" data-tab="pending"><span class="qq">${esc(r.question)}</span><span class="qp">${esc(titleFor(r.product_id))}</span></div>`).join("")}${pend.length>25?`<div class="more">+ ${pend.length-25} more — open a product to see the rest</div>`:""}</div>` : `<div class="queue"><div class="qh">Nothing waiting for approval right now.</div></div>`}
+      <div class="dashhint">Search above for a product or a question, or click an item to open it.</div>
+    </div>`;
+  panel.querySelectorAll(".qrow").forEach(el=>el.onclick=()=>openItem(el.dataset.pid, el.dataset.tab));
+  panel.querySelectorAll(".stat[data-go]").forEach(el=>el.onclick=()=>{
+    const first = (el.dataset.go==="pending"?pend:un)[0];
+    if(first) openItem(first.product_id, el.dataset.go);
+  });
+}
+function openItem(pid, tab){ openProduct(pid).then(()=>{ TAB = tab; renderTabs(); renderList(); }); }
 
 /* ---------- toast ---------- */
 let toastTimer;
@@ -89,11 +121,21 @@ const suggBox = document.getElementById("sugg");
 qInput.addEventListener("input", () => {
   const t = qInput.value.trim();
   if(!t){ suggBox.classList.add("hidden"); return; }
-  const hits = CATALOG.map(p=>[p,score(p,t)]).filter(x=>x[1]>=.45).sort((a,b)=>b[1]-a[1]).slice(0,6);
-  if(!hits.length){ suggBox.innerHTML='<div class="row"><span class="meta">No close match — try fewer letters</span></div>'; suggBox.classList.remove("hidden"); return; }
-  suggBox.innerHTML = hits.map(([p])=>`<div class="row" data-id="${p.id}"><span class="ttl">${esc(p.title)}</span><span class="meta">${p.variants.length} SKUs · ${esc(p.type)}</span></div>`).join("");
-  suggBox.classList.remove("hidden");
-  suggBox.querySelectorAll(".row[data-id]").forEach(r=>r.onclick=()=>{ openProduct(r.dataset.id); suggBox.classList.add("hidden"); qInput.value=""; });
+  const phits = CATALOG.map(p=>[p,score(p,t)]).filter(x=>x[1]>=.45).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  // global question search across all logged Q&A
+  const qtoks = tok(t), need = Math.max(1, Math.ceil(qtoks.length*0.6));
+  const qhits = ROWS.map(r=>{
+    const hay = (r.question+" "+(r.answer||"")).toLowerCase();
+    let m=0; qtoks.forEach(w=>{ if(hay.includes(w)) m++; });
+    return [r,m];
+  }).filter(x=>x[1]>=need).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  let html="";
+  if(phits.length) html += `<div class="sgsec">Products</div>` + phits.map(([p])=>`<div class="row" data-id="${p.id}"><span class="ttl">${esc(p.title)}</span><span class="meta">${p.variants.length} SKUs · ${esc(p.type)}</span></div>`).join("");
+  if(qhits.length) html += `<div class="sgsec">Questions</div>` + qhits.map(([r])=>`<div class="row qrowsg" data-pid="${esc(r.product_id)}" data-tab="${esc(r.status)}"><span class="ttl">${esc(r.question)}</span><span class="meta">${esc(titleFor(r.product_id))}</span></div>`).join("");
+  if(!html) html = '<div class="row"><span class="meta">No match — try fewer letters</span></div>';
+  suggBox.innerHTML = html; suggBox.classList.remove("hidden");
+  suggBox.querySelectorAll(".row[data-id]").forEach(n=>n.onclick=()=>{ openProduct(n.dataset.id); suggBox.classList.add("hidden"); qInput.value=""; });
+  suggBox.querySelectorAll(".qrowsg").forEach(n=>n.onclick=()=>{ openItem(n.dataset.pid, n.dataset.tab); suggBox.classList.add("hidden"); qInput.value=""; });
 });
 document.addEventListener("click", e => { if(!suggBox.contains(e.target) && e.target!==qInput) suggBox.classList.add("hidden"); });
 
@@ -229,25 +271,44 @@ async function saveQuestion(){
 
 /* ---------- question list ---------- */
 function skuChip(s){ return s ? `<span class="sku">${esc(s)}</span>` : `<span class="stamp" style="margin-left:0">whole product</span>`; }
+let EDITING = null;
+function fmt(a){ return esc(a).replace(/\n/g,"<br>"); }
+function staleBadge(r){
+  if(r.status!=="approved" || !r.last_verified_at) return "";
+  const d = new Date(r.last_verified_at); if(isNaN(d)) return "";
+  const days = (Date.now()-d.getTime())/86400000;
+  if(days>182){ const mo=Math.max(1,Math.round(days/30)); return `<span class="stale">&#9888; review — verified ${mo} mo ago</span>`; }
+  return "";
+}
 function renderList(){
   const list = visibleRows().filter(r=>r.status===TAB);
   const ql = document.getElementById("qlist");
   if(!list.length){ ql.innerHTML = `<div class="spin">Nothing in ${TAB==="pending"?"pending approval":TAB}.</div>`; return; }
   ql.innerHTML = list.map(r=>{
+    if(EDITING===r.id){
+      return `<div class="qitem editing">
+        <label class="edlbl">Question</label>
+        <input class="ed-q" data-eq="${r.id}" value="${esc(r.question)}" />
+        <label class="edlbl">Answer</label>
+        <textarea class="ed-a" data-ea="${r.id}" rows="4" placeholder="Answer…">${esc(r.answer)}</textarea>
+        <div class="qctrls"><button class="btn sm primary" data-save="${r.id}">Save</button><button class="btn sm" data-cancel="1">Cancel</button>${r.status==="approved"?'<span class="hint">editing the answer sends it back for re-approval</span>':''}</div>
+      </div>`;
+    }
     let ans;
     if(r.status==="unanswered"){
       ans = `<div class="ansrow"><input data-ans="${r.id}" placeholder="Know this? Answer it…" />
         <div class="srcrow"><input data-src="${r.id}" placeholder="Source link (ClickUp, Drive…) — optional" /></div></div>`;
     } else {
-      ans = `<div class="ans">${esc(r.answer)}</div>${r.source_link?`<div style="margin-top:4px"><a class="link" href="${esc(r.source_link)}" target="_blank" rel="noopener">source ↗</a></div>`:""}`;
+      ans = `<div class="ans">${fmt(r.answer)}</div>${r.source_link?`<div style="margin-top:4px"><a class="link" href="${esc(r.source_link)}" target="_blank" rel="noopener">source ↗</a></div>`:""}`;
     }
     let ctrls = "";
-    if(r.status==="pending") ctrls = `<label class="check"><input type="checkbox" data-appr="${r.id}"> Approve</label>`;
-    if(r.status==="approved") ctrls = `<button class="btn sm" data-edit="${r.id}">Edit (re-approval)</button>`;
+    if(r.status==="pending") ctrls += `<label class="check"><input type="checkbox" data-appr="${r.id}"> Approve</label>`;
+    ctrls += `<button class="btn sm" data-edit="${r.id}">Edit</button>`;
+    if(r.status!=="unanswered") ctrls += `<button class="btn sm" data-copy="${r.id}">Copy</button>`;
     return `<div class="qitem ${r.status==='pending'?'pending':''}">
       <div class="qtop"><span class="qtext">${esc(r.question)}</span>${skuChip(r.variant_sku)}</div>
       ${ans}
-      <div class="qmeta"><span class="stamp">${r.answered_by?esc(initials(r.answered_by))+" · ":""}${esc((r.last_verified_at||r.answered_at||r.created_at||"").slice(0,10))}${r.last_verified_at?" · last verified":""}</span></div>
+      <div class="qmeta">${staleBadge(r)}<span class="stamp">${r.answered_by?esc(initials(r.answered_by))+" · ":""}${esc((r.last_verified_at||r.answered_at||r.created_at||"").slice(0,10))}${r.last_verified_at?" · last verified":""}</span></div>
       <div class="qctrls">${ctrls}<button class="btn sm danger" data-del="${r.id}" style="margin-left:auto">Delete</button></div>
     </div>`;
   }).join("");
@@ -256,8 +317,16 @@ function renderList(){
     if(e.key==="Enter" && inp.value.trim()){ const src=ql.querySelector(`[data-src="${inp.dataset.ans}"]`); submitAnswer(inp.dataset.ans, inp.value.trim(), src?src.value.trim():""); }
   }));
   ql.querySelectorAll("[data-appr]").forEach(c=>c.onchange=()=>approve(c.dataset.appr));
-  ql.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>mutate({action:"unapprove", id:b.dataset.edit}, "pending", "Moved back to pending"));
+  ql.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{ EDITING=b.dataset.edit; renderList(); });
+  ql.querySelectorAll("[data-cancel]").forEach(b=>b.onclick=()=>{ EDITING=null; renderList(); });
+  ql.querySelectorAll("[data-save]").forEach(b=>b.onclick=()=>{ const id=b.dataset.save; const q=ql.querySelector(`[data-eq="${id}"]`).value.trim(); const a=ql.querySelector(`[data-ea="${id}"]`).value.trim(); editItem(id,q,a); });
+  ql.querySelectorAll("[data-copy]").forEach(b=>b.onclick=()=>{ const r=ROWS.find(x=>x.id===b.dataset.copy); if(r) navigator.clipboard.writeText(r.answer||"").then(()=>toast("Answer copied")).catch(()=>toast("Copy failed",true)); });
   ql.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ if(confirm("Delete this question?")) mutate({action:"delete", id:b.dataset.del}, null, "Deleted"); });
+}
+async function editItem(id,q,a){
+  if(!q){ toast("Question can't be empty", true); return; }
+  try { await apiPost({action:"edit", id, question:q, answer:a}); EDITING=null; await apiGet(); renderTabs(); renderList(); toast("Saved"); }
+  catch(e){ toast("Save failed: "+e.message, true); }
 }
 async function submitAnswer(id, answer, source_link){
   try { await apiPost({ action:"answer", id, answer, source_link }); await apiGet(); TAB="pending"; renderTabs(); renderList(); toast("Answer saved — pending approval"); }

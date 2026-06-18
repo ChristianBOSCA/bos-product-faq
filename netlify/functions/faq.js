@@ -123,6 +123,20 @@ exports.handler = async (event, context) => {
         await audit(sheets, id, actor, "answer", o.id, body.answer);
         return json(200, { ok:true });
       }
+      if(action === "edit"){
+        if(body.question != null) o.question = String(body.question);
+        if(body.answer != null){
+          const newAns = String(body.answer);
+          if(newAns !== o.answer){
+            o.answer = newAns; o.answered_by = actor; o.answered_at = nowISO();
+            if(o.status === "approved"){ o.status = "pending"; o.approved_by = ""; o.last_verified_at = ""; }
+            else if(o.status === "unanswered" && newAns){ o.status = "pending"; }
+          }
+        }
+        await writeRow(sheets, id, target._row, o);
+        await audit(sheets, id, actor, "edit", o.id, "");
+        return json(200, { ok:true });
+      }
       if(action === "approve"){
         if(process.env.LEAD_PIN && body.lead_pin !== process.env.LEAD_PIN) return text(403, "Team Lead PIN required or incorrect.");
         o.status = "approved"; o.approved_by = actor; o.last_verified_at = nowISO();

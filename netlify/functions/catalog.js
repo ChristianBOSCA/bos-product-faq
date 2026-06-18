@@ -28,9 +28,12 @@ async function fetchPublic(store){
     const list = (await res.json()).products || [];
     if(!list.length) break;
     for(const p of list){
-      const variants = (p.variants || []).map(v => ({ sku: v.sku || "", title: v.title || "" })).filter(v => v.sku);
+      const variants = (p.variants || []).map(v => ({
+        sku: v.sku || "", title: v.title || "",
+        weight_lb: v.grams ? Math.round(v.grams / 453.592 * 10) / 10 : null
+      })).filter(v => v.sku);
       if(!variants.length) continue;
-      products.push({ id: String(p.id), title: p.title, type: p.product_type || "", src: "Shopify (live)", variants });
+      products.push({ id: String(p.id), title: p.title, type: p.product_type || "", src: "Shopify (live)", handle: p.handle || "", variants });
     }
     if(list.length < 250) break;
   }

@@ -126,9 +126,25 @@ async function apiPost(body){
 async function openProduct(id){
   CURRENT = CATALOG.find(p=>p.id===id); TAB = "unanswered";
   renderProductShell();
+  loadDocs(CURRENT.handle);
   document.getElementById("qlist").innerHTML = '<div class="spin">Loading questions…</div>';
   try { await apiGet(); } catch(e){ toast("Could not load questions", true); }
   renderTabs(); renderList();
+}
+async function loadDocs(handle){
+  const el = document.getElementById("docs");
+  if(!el || !handle) return;
+  try {
+    const res = await fetch(`/.netlify/functions/docs?handle=${encodeURIComponent(handle)}`);
+    if(!res.ok) return;
+    const d = await res.json();
+    let html = "";
+    if(d.dims) html += `<div class="docdims"><b>Box:</b> ${esc(d.dims)} <span class="hint">— full dimensions in the Box Contents PDF</span></div>`;
+    if(d.manuals && d.manuals.length){
+      html += `<div class="doclinks">` + d.manuals.map(m=>`<a class="link doclink" href="${esc(m.url)}" target="_blank" rel="noopener"><span class="pdftag">PDF</span> ${esc(m.label)}</a>`).join("") + `</div>`;
+    }
+    el.innerHTML = html;
+  } catch(e){ /* docs are best-effort */ }
 }
 function rowsForProduct(){ return ROWS.filter(r=>r.product_id===CURRENT.id); }
 function counts(){ const l=rowsForProduct(); return { unanswered:l.filter(r=>r.status==="unanswered").length, pending:l.filter(r=>r.status==="pending").length, approved:l.filter(r=>r.status==="approved").length }; }
@@ -139,7 +155,8 @@ function renderProductShell(){
     <div class="card">
       <div class="prodhead"><span class="name">${esc(p.title)}</span><span class="type">${esc(p.type)}</span><span class="src">${esc(p.src)}</span></div>
       <div class="varlabel">Variants / SKUs</div>
-      ${p.variants.map(v=>`<div class="variant"><span class="sku">${esc(v.sku)}</span><span>${esc(v.title)}</span>${/attach|band|strap|\+/i.test(v.title)?'<span class="attflag">attachment</span>':''}</div>`).join("")}
+      ${p.variants.map(v=>`<div class="variant"><span class="sku">${esc(v.sku)}</span><span>${esc(v.title)}</span>${v.weight_lb?`<span class="wt">${v.weight_lb} lb</span>`:""}${/attach|band|strap|\+/i.test(v.title)?'<span class="attflag">attachment</span>':''}</div>`).join("")}
+      <div id="docs" class="docs"></div>
     </div>
     <div class="tabs" id="tabs"></div>
     <div class="qhead"><span class="lab" id="tablab"></span><button class="btn addbtn" id="addbtn">+ Log question</button></div>

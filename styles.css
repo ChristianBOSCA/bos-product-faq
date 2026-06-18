@@ -51,6 +51,13 @@ main{max-width:860px;margin:0 auto;padding:24px 20px 80px}
 .variant{display:flex;gap:8px;align-items:center;padding:4px 0;font-size:13px}
 .sku{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:var(--gray-bg);padding:2px 7px;border-radius:6px}
 .attflag{font-size:10px;background:var(--purple-bg);color:var(--purple-fg);padding:1px 6px;border-radius:6px}
+.wt{font-size:11px;color:var(--muted);background:var(--gray-bg);padding:1px 6px;border-radius:6px}
+.docs{margin-top:12px}
+.docdims{font-size:13px;color:var(--text);margin-bottom:6px}
+.docdims .hint{color:var(--faint);font-size:12px}
+.doclinks{display:flex;flex-direction:column;gap:4px}
+.doclink{font-size:13px;display:inline-flex;align-items:center;gap:6px}
+.pdftag{font-size:10px;font-weight:600;background:var(--red);color:#fff;padding:1px 5px;border-radius:4px}
 
 .tabs{display:flex;gap:8px;margin:6px 0 14px;flex-wrap:wrap}
 .tab{padding:7px 13px;font-size:13px;border:1px solid var(--line2);border-radius:8px;background:var(--surface);cursor:pointer}

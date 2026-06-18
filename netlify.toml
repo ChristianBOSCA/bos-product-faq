@@ -8,12 +8,9 @@
 [functions]
   node_bundler = "esbuild"
 
-# Single-page app: unknown paths fall back to index.html (but never the function path).
-[[redirects]]
-  from = "/.netlify/functions/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-
+# Single-page app: unknown paths fall back to index.html.
+# (Function calls at /.netlify/functions/* are served natively before this rule,
+# and real static files are served before it too, so this is safe.)
 [[redirects]]
   from = "/*"
   to = "/index.html"

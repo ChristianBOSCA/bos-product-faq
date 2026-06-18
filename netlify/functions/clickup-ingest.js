@@ -97,28 +97,36 @@ exports.handler = async () => {
     const rows = (got.data.values||[]).map((r,i)=>({ _row:i+2, id:r[0]||"", status:r[6]||"", answer:r[7]||"" }));
     const byId = {}; rows.forEach(r=>byId[r.id]=r);
 
+    // field-tolerant helpers (raw v3 API shapes vary)
+    const cText = c => typeof c==="string" ? c : ((c && (c.text||c.md||c.content)) || "");
+    const uOf   = x => x.user_id || (x.user && x.user.id) || x.author_id || x.userid || "";
+    const dOf   = x => x.date || x.created_at || x.created || x.timestamp;
+    const arr   = r => r.messages || r.data || r.replies || (Array.isArray(r)?r:[]);
+
     // pull recent channel messages
-    const msgs = (await ck(`/v3/workspaces/${WORKSPACE}/chat/channels/${CHANNEL}/messages?limit=100`, token)).messages || [];
+    const mr = await ck(`/v3/workspaces/${WORKSPACE}/chat/channels/${CHANNEL}/messages?limit=100`, token);
+    const msgs = arr(mr);
     const appends = []; let updated=0, created=0;
 
     for(const m of msgs){
       if(m.type && m.type!=="message") continue;
-      const q = strip(m.content);
+      const content = cText(m.content), uid = uOf(m), mdate = dOf(m);
+      const hasReplies = (m.has_replies!=null) ? m.has_replies : ((m.reply_count||m.replies_count||0) > 0);
+      const q = strip(content);
       if(!looksLikeQuestion(q)) continue;
       const cid = "ck_"+m.id;
 
       // find a teammate answer in the thread (skip asker + bots)
       let ans="", ansBy="", ansAt="";
-      if(m.has_replies){
+      if(hasReplies){
         try {
-          const reps = (await ck(`/v3/workspaces/${WORKSPACE}/chat/channels/${CHANNEL}/messages/${m.id}/replies?limit=50`, token)).replies || [];
-          // replies are newest-first; take the latest substantive non-asker, non-bot reply
+          const reps = arr(await ck(`/v3/workspaces/${WORKSPACE}/chat/channels/${CHANNEL}/messages/${m.id}/replies?limit=50`, token));
           for(const rp of reps){
-            const rt = strip(rp.content);
-            if(String(rp.user_id)===String(m.user_id)) continue;
-            if(botIds.has(String(rp.user_id))) continue;
+            const ruid = uOf(rp), rt = strip(cText(rp.content));
+            if(String(ruid)===String(uid)) continue;
+            if(botIds.has(String(ruid))) continue;
             if(rt.length<3 || /^(thanks|ty|np|ok|okay|yep|yes|no problem)\b/i.test(rt)) continue;
-            ans=rt; ansBy=nameOf(rp.user_id); ansAt=nowISO(rp.date); break;
+            ans=rt; ansBy=nameOf(ruid); ansAt=nowISO(dOf(rp)); break;
           }
         } catch(e){}
       }
@@ -133,10 +141,10 @@ exports.handler = async () => {
         }
         continue;
       }
-      const mt = match(m.content);
+      const mt = match(content);
       const row = ["ck_"+m.id, mt.product_id, mt.product_title, mt.variant_sku, q, "clickup",
         ans?"pending":"unanswered", ans, `https://app.clickup.com/${WORKSPACE}/v/c/${CHANNEL}`, "",
-        nameOf(m.user_id), nowISO(m.date), ansBy, ansAt, "", ""];
+        nameOf(uid), nowISO(mdate), ansBy, ansAt, "", ""];
       appends.push(row); created++;
     }
 
@@ -144,7 +152,8 @@ exports.handler = async () => {
       await sheets.spreadsheets.values.append({ spreadsheetId:sheetId, range:`${TAB}!A2:${LASTCOL}`,
         valueInputOption:"RAW", insertDataOption:"INSERT_ROWS", requestBody:{ values:appends } });
     }
-    const summary = `ClickUp ingest: ${created} new, ${updated} updated, ${msgs.length} scanned.`;
+    const summary = `ClickUp ingest: ${created} new, ${updated} updated, ${msgs.length} scanned.`
+      + (msgs.length===0 ? ` [debug: response keys = ${Object.keys(mr).join("|")||"none"}]` : "");
     console.log(summary);
     return { statusCode:200, body:summary };
   } catch(e){

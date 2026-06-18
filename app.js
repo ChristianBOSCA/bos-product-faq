@@ -39,18 +39,18 @@ function setName(){
 document.getElementById("enterBtn").onclick = setName;
 document.getElementById("nameInput").addEventListener("keydown", e=>{ if(e.key==="Enter") setName(); });
 
-/* ---------- boot ---------- */
+/* ---------- boot ----------
+ * Uses the bundled catalog.json (complete export of all active products,
+ * including ones hidden from the public feed). If a Shopify Admin token is
+ * later configured, switch the first fetch to /.netlify/functions/catalog. */
 async function boot(){
-  // Prefer the live Shopify catalog; fall back to the bundled snapshot.
   try {
-    const res = await fetch("/.netlify/functions/catalog");
-    if(res.ok){
-      const data = await res.json();
-      if(data.products && data.products.length){ CATALOG = data.products; return; }
-    }
-  } catch(e){ /* fall through to snapshot */ }
-  try { const res = await fetch("catalog.json"); CATALOG = (await res.json()).products || []; toast("Using offline catalog snapshot"); }
-  catch(e){ toast("Could not load catalog", true); }
+    const res = await fetch("catalog.json?v=" + Date.now());
+    CATALOG = (await res.json()).products || [];
+  } catch(e){
+    try { const r = await fetch("/.netlify/functions/catalog"); CATALOG = (await r.json()).products || []; }
+    catch(e2){ toast("Could not load catalog", true); }
+  }
 }
 
 /* ---------- toast ---------- */

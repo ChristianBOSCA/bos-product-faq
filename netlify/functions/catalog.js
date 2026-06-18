@@ -43,10 +43,25 @@ async function fetchPublic(store){
 /* ---- Admin API: needs a read_products token ---- */
 const QUERY = `query($cursor: String) {
   products(first: 250, after: $cursor, query: "status:active") {
-    edges { node { id title productType variants(first: 100) { edges { node { sku title } } } } }
+    edges { node {
+      id title productType handle
+      variants(first: 100) { edges { node {
+        sku title
+        inventoryItem { measurement { weight { value unit } } }
+      } } }
+    } }
     pageInfo { hasNextPage endCursor }
   }
 }`;
+function toLb(w){
+  if(!w || !w.value) return null;
+  const u = (w.unit || "").toUpperCase();
+  const lb = u === "KILOGRAMS" ? w.value * 2.20462
+           : u === "GRAMS"     ? w.value / 453.592
+           : u === "OUNCES"    ? w.value / 16
+           : w.value; // POUNDS
+  return Math.round(lb * 10) / 10;
+}
 async function fetchAdmin(store, token){
   const products = []; let cursor = null;
   for(let pages = 0; pages < 40; pages++){
@@ -60,9 +75,12 @@ async function fetchAdmin(store, token){
     const conn = data.data.products;
     for(const e of conn.edges){
       const n = e.node;
-      const variants = n.variants.edges.map(v => ({ sku: v.node.sku || "", title: v.node.title || "" })).filter(v => v.sku);
+      const variants = n.variants.edges.map(v => ({
+        sku: v.node.sku || "", title: v.node.title || "",
+        weight_lb: toLb(v.node.inventoryItem && v.node.inventoryItem.measurement && v.node.inventoryItem.measurement.weight)
+      })).filter(v => v.sku);
       if(!variants.length) continue;
-      products.push({ id: n.id.split("/").pop(), title: n.title, type: n.productType || "", src: "Shopify (live)", variants });
+      products.push({ id: n.id.split("/").pop(), title: n.title, type: n.productType || "", src: "Shopify (live)", handle: n.handle || "", variants });
     }
     if(!conn.pageInfo.hasNextPage) break;
     cursor = conn.pageInfo.endCursor;

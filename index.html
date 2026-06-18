@@ -8,7 +8,12 @@
 </head>
 <body>
 <header class="topbar">
-  <div class="brand"><span class="dot"></span> Product FAQ <span class="sub">internal knowledge base</span></div>
+  <div class="brand">
+    <img src="logo.png" alt="Bells of Steel" class="logo" onerror="this.remove()" />
+    <span class="dot"></span>
+    <span class="mark">Bells of Steel</span>
+    <span class="sub">Product FAQ</span>
+  </div>
   <div class="userbox" id="userbox"></div>
 </header>
 
@@ -27,7 +32,18 @@
       <input id="q" type="text" placeholder="Search SKU or product name (typos OK)…" autocomplete="off" />
       <div id="sugg" class="sugg hidden"></div>
     </div>
-    <div class="note">Catalog read-only from Plytix · Shopify · Brightpearl. Questions &amp; answers stored in the linked Google Sheet.</div>
+    <div class="note">Catalog read-only from Shopify. Questions &amp; answers stored in the linked Google Sheet.</div>
+    <details class="howto">
+      <summary>How to use this tool</summary>
+      <div class="howto-body">
+        <p>1. <b>Search</b> any product name or SKU — typos are fine — and pick it from the list.</p>
+        <p>2. You'll see its <b>variants/SKUs, shipping weights, and manual links</b>.</p>
+        <p>3. Hit <b>+ Log question</b> to add a question. If it's specific to an attachment, the tool offers to tag it to that exact SKU.</p>
+        <p>4. New questions land in <b>Unanswered</b>. Anyone who knows the answer types it in — it moves to <b>Pending approval</b> with their initials and the date.</p>
+        <p>5. A team lead ticks <b>Approve</b> to verify it (moves to <b>Approved</b>). Editing an approved answer sends it back for re-approval.</p>
+        <p class="howto-note">Tip: your name is remembered on this device. Use “not you?” in the top corner to switch.</p>
+      </div>
+    </details>
     <div id="panel" class="panel">
       <div class="empty">
         <p>Search a product or SKU to begin.</p>

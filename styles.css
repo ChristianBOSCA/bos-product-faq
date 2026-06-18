@@ -1,7 +1,7 @@
 :root{
   --bg:#f6f5f2; --surface:#fff; --line:#e3e1da; --line2:#cfccc3;
   --text:#23221f; --muted:#6b6a64; --faint:#9a9890;
-  --red:#e4002b; --navy:#161616;
+  --red:#e4002b; --navy:#161616; --orange:#f26522;
   --purple-bg:#eeedfe; --purple-fg:#3c3489;
   --teal-bg:#e1f5ee; --teal-fg:#0f6e56;
   --amber-bg:#faeeda; --amber-fg:#854f0b;
@@ -12,12 +12,15 @@
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.5}
 .hidden{display:none !important}
 
-.topbar{display:flex;align-items:center;gap:12px;padding:12px 20px;background:#161616;border-bottom:3px solid var(--red)}
+.topbar{display:flex;align-items:center;gap:12px;padding:12px 20px;background:#161616;border-bottom:3px solid var(--orange)}
 .brand{display:flex;align-items:center;gap:10px;color:#fff}
-.brand .logo{height:26px;width:auto;display:block}
-.brand .mark{font-weight:700;font-size:16px;text-transform:uppercase;letter-spacing:.6px}
-.brand .sub{font-weight:400;color:#b9b9b9;font-size:13px}
-.brand .dot{width:9px;height:22px;border-radius:2px;background:var(--red);display:inline-block}
+.brand .logo{height:30px;width:auto;display:block}
+.brand .faqtag{padding-left:12px;margin-left:2px;border-left:1px solid #444;color:#bdbdbd;font-size:13px}
+.brand .mark{font-weight:700;font-size:16px;text-transform:uppercase;letter-spacing:.6px;line-height:1}
+.brand .sub{font-weight:400;color:#b9b9b9;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.brand .sub .leaf{color:var(--red)}
+.brand .dot{width:9px;height:22px;border-radius:2px;background:var(--orange);display:inline-block}
+.brand .faqtag{font-weight:400;color:#9a9890;font-size:13px;text-transform:none;letter-spacing:0;margin-left:2px}
 .userbox{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:13px;color:#b9b9b9}
 .userbox .who{font-weight:600;color:#fff;background:var(--red);border-radius:4px;padding:1px 6px}
 .userbox a.link{color:#dcdcdc}
@@ -25,7 +28,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Hel
 .howto{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);margin:0 0 18px;overflow:hidden}
 .howto summary{cursor:pointer;padding:11px 14px;font-weight:600;font-size:14px;list-style:none}
 .howto summary::-webkit-details-marker{display:none}
-.howto summary::before{content:"›";display:inline-block;margin-right:8px;color:var(--red);font-weight:700;transition:transform .15s}
+.howto summary::before{content:"›";display:inline-block;margin-right:8px;color:var(--orange);font-weight:700;transition:transform .15s}
 .howto[open] summary::before{transform:rotate(90deg)}
 .howto-body{padding:4px 16px 14px;font-size:13px;color:var(--muted)}
 .howto-body p{margin:6px 0}
@@ -61,7 +64,15 @@ main{max-width:860px;margin:0 auto;padding:24px 20px 80px}
 .prodhead .type{color:var(--faint);font-size:13px}
 .prodhead .src{margin-left:auto;color:var(--faint);font-size:12px}
 .varlabel{font-size:12px;color:var(--muted);margin:14px 0 6px}
-.variant{display:flex;gap:8px;align-items:center;padding:4px 0;font-size:13px}
+.varhint{color:var(--faint)}
+.varlist{border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.variant{display:flex;gap:8px;align-items:center;padding:7px 10px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--line);border-left:3px solid transparent}
+.varlist .variant:last-child{border-bottom:none}
+.variant:hover{background:var(--bg)}
+.variant.selected{background:#fff5ef;border-left-color:var(--orange)}
+.variant.varall{font-weight:500;background:var(--bg)}
+.variant.varall.selected{background:#fff5ef}
+.skuall{background:var(--orange);color:#fff}
 .sku{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:var(--gray-bg);padding:2px 7px;border-radius:6px}
 .attflag{font-size:10px;background:var(--purple-bg);color:var(--purple-fg);padding:1px 6px;border-radius:6px}
 .wt{font-size:11px;color:var(--muted);background:var(--gray-bg);padding:1px 6px;border-radius:6px}

@@ -399,7 +399,7 @@
 {
 "id": "specialty-bar-bundle",
 "title": "Specialty Bar Bundle",
-"type": "Food, Beverages & Tobacco > Beverages > Alcoholic Beverages > Liquor & Spirits",
+"type": "Liquor & Spirits",
 "src": "Shopify export",
 "handle": "specialty-bar-bundle",
 "variants": [
@@ -441,7 +441,7 @@
 {
 "id": "basilisk-stack-loaded-leg-extension-leg-curl",
 "title": "Basilisk Stack Loaded Leg Extension / Leg Curl",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Exercise Machine & Equipment Sets",
+"type": "Exercise Machine & Equipment Sets",
 "src": "Shopify export",
 "handle": "basilisk-stack-loaded-leg-extension-leg-curl",
 "variants": [
@@ -460,7 +460,7 @@
 {
 "id": "half-rack-conversion-kits",
 "title": "Half Rack Conversion Kits",
-"type": "Home & Garden > Kitchen & Dining > Kitchen Appliance Accessories > Cooktop, Oven & Range Accessories > Racks",
+"type": "Racks",
 "src": "Shopify export",
 "handle": "half-rack-conversion-kits",
 "variants": [
@@ -493,7 +493,7 @@
 {
 "id": "converter-bench-flat-drop-in",
 "title": "Converter Bench - Flat Bench",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Exercise Benches",
+"type": "Exercise Benches",
 "src": "Shopify export",
 "handle": "converter-bench-flat-drop-in",
 "variants": [
@@ -512,7 +512,7 @@
 {
 "id": "deadlift-bar",
 "title": "Deadlift Bar",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Free Weight Accessories > Barbells & Weightlifting Bars",
+"type": "Barbells & Weightlifting Bars",
 "src": "Shopify export",
 "handle": "deadlift-bar",
 "variants": [
@@ -526,7 +526,7 @@
 {
 "id": "die-cut-sticker-upgrade-sticker-pack",
 "title": "Die-Cut Sticker Upgrade / Sticker Pack",
-"type": "Arts & Entertainment > Hobbies & Creative Arts > Arts & Crafts > Art & Crafting Materials > Embellishments & Trims > Decorative Stickers",
+"type": "Decorative Stickers",
 "src": "Shopify export",
 "handle": "die-cut-sticker-upgrade-sticker-pack",
 "variants": [
@@ -540,7 +540,7 @@
 {
 "id": "crossmember-for-converter-bench-43",
 "title": "Crossmember For Converter Bench - 43\"",
-"type": "Vehicles & Parts > Vehicle Parts & Accessories > Motor Vehicle Parts > Motor Vehicle Transmission & Drivetrain Parts",
+"type": "Motor Vehicle Transmission & Drivetrain Parts",
 "src": "Shopify export",
 "handle": "crossmember-for-converter-bench-43",
 "variants": [
@@ -588,7 +588,7 @@
 {
 "id": "rack-junctions-3-x-3",
 "title": "Rack Junctions - 3\" x 3\"",
-"type": "Hardware > Power & Electrical Supplies > Conduit & Housings > Electrical Conduit",
+"type": "Electrical Conduit",
 "src": "Shopify export",
 "handle": "rack-junctions-3-x-3",
 "variants": [
@@ -607,7 +607,7 @@
 {
 "id": "footplate-for-cable-tower",
 "title": "Footplate for Cable Tower/All In One Trainer",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Weight Lifting Machines & Racks > Weight Lifting Machines with Pulleys",
+"type": "Weight Lifting Machines with Pulleys",
 "src": "Shopify export",
 "handle": "footplate-for-cable-tower",
 "variants": [
@@ -621,7 +621,7 @@
 {
 "id": "storage-shelves",
 "title": "Storage Shelves",
-"type": "Furniture > Shelving > Bookcases & Standing Shelves > Modular Bookcases & Shelves",
+"type": "Modular Bookcases & Shelves",
 "src": "Shopify export",
 "handle": "storage-shelves",
 "variants": [
@@ -660,7 +660,7 @@
 {
 "id": "divider-for-bumper-plate-shelf",
 "title": "Divider for Bumper Plate Shelf (Pack of 3)",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Free Weight Accessories",
+"type": "Free Weight Accessories",
 "src": "Shopify export",
 "handle": "divider-for-bumper-plate-shelf",
 "variants": [
@@ -674,7 +674,7 @@
 {
 "id": "3x3-cable-tower-to-rack-connection-kit",
 "title": "3x3 Cable Tower to Rack Connection Kit",
-"type": "Electronics > Electronics Accessories > Cable Management > Wire & Cable Sleeves",
+"type": "Wire & Cable Sleeves",
 "src": "Shopify export",
 "handle": "3x3-cable-tower-to-rack-connection-kit",
 "variants": [
@@ -688,7 +688,7 @@
 {
 "id": "wildman-poison-pill",
 "title": "48KG Extension Kit for Adjustable Kettlebell - Wildman Poison Pill",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Free Weight Accessories",
+"type": "Free Weight Accessories",
 "src": "Shopify export",
 "handle": "wildman-poison-pill",
 "variants": [
@@ -702,7 +702,7 @@
 {
 "id": "wildman-adjustable-macebell-program",
 "title": "Mark Wildman Mace 360s - Bells of Steel USA",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Free Weights, Dumbbells & Kettlebells > Kettlebells",
+"type": "Kettlebells",
 "src": "Shopify export",
 "handle": "wildman-adjustable-macebell-program",
 "variants": [
@@ -716,7 +716,7 @@
 {
 "id": "oblivyon-tower-3x3-cable-tower-squat-stands",
 "title": "Oblivyon Tower - 3\" x 3” Cable Tower Squat Stands",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Weight Lifting Machines & Racks > Weight Lifting Racks",
+"type": "Weight Lifting Racks",
 "src": "Shopify export",
 "handle": "oblivyon-tower-3x3-cable-tower-squat-stands",
 "variants": [
@@ -745,7 +745,7 @@
 {
 "id": "pandemonium-squat",
 "title": "Pandemonium Squat – 3-in-1 Pendulum Squat / Calf Press / Viking Press Machine",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Weight Lifting Machines & Racks",
+"type": "Weight Lifting Machines & Racks",
 "src": "Shopify export",
 "handle": "pandemonium-squat",
 "variants": [
@@ -759,7 +759,7 @@
 {
 "id": "oblivyon-tower-3x3-cable-tower",
 "title": "Oblivyon Tower - 3\" x 3” Cable Tower",
-"type": "Electronics > Electronics Accessories > Cable Management",
+"type": "Cable Management",
 "src": "Shopify export",
 "handle": "oblivyon-tower-3x3-cable-tower",
 "variants": [
@@ -793,7 +793,7 @@
 {
 "id": "nuobell-s-floor-stand",
 "title": "NÜOBELL-S Floor Stand",
-"type": "Electronics > Audio > Audio Accessories > Speaker Accessories > Speaker Stands & Mounts",
+"type": "Speaker Stands & Mounts",
 "src": "Shopify export",
 "handle": "nuobell-s-floor-stand",
 "variants": [
@@ -817,7 +817,7 @@
 {
 "id": "flat-iron-tricep-press-cable-attachment",
 "title": "Flat-Iron Tricep Press Cable Attachment",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Weight Lifting Machine & Exercise Bench Accessories > Handles",
+"type": "Handles",
 "src": "Shopify export",
 "handle": "flat-iron-tricep-press-cable-attachment",
 "variants": [
@@ -836,7 +836,7 @@
 {
 "id": "rubber-flooring-24",
 "title": "Rubber Flooring Gym Mat 24\" x 24\" (Set of 2)",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Exercise Equipment Mats > Floor Protection Mats",
+"type": "Floor Protection Mats",
 "src": "Shopify export",
 "handle": "rubber-flooring-24",
 "variants": [
@@ -850,7 +850,7 @@
 {
 "id": "lb-competition-bumper-plate-sets",
 "title": "LB Competition Bumper Plate Sets",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Free Weights, Dumbbells & Kettlebells > Weight Plates",
+"type": "Weight Plates",
 "src": "Shopify export",
 "handle": "lb-competition-bumper-plate-sets",
 "variants": [
@@ -884,7 +884,7 @@
 {
 "id": "arch-nemesis-tricep-bar",
 "title": "Arch Nemesis Tricep Bar",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Weight Lifting Machine & Exercise Bench Accessories > Handles",
+"type": "Handles",
 "src": "Shopify export",
 "handle": "arch-nemesis-tricep-bar",
 "variants": [
@@ -898,7 +898,7 @@
 {
 "id": "kolossyem-rack",
 "title": "Kolossyem Rack",
-"type": "Apparel & Accessories > Clothing Accessories > Gloves & Mittens",
+"type": "Gloves & Mittens",
 "src": "Shopify export",
 "handle": "kolossyem-rack",
 "variants": [
@@ -912,7 +912,7 @@
 {
 "id": "chest-expander-replacement-springs",
 "title": "Chest Expander Replacement Springs",
-"type": "Sporting Goods > Fitness & General Exercise Equipment",
+"type": "Fitness & General Exercise Equipment",
 "src": "Shopify export",
 "handle": "chest-expander-replacement-springs",
 "variants": [
@@ -926,7 +926,7 @@
 {
 "id": "nuobell-s-adjustable-dumbbells",
 "title": "NÜOBELL-S Adjustable Dumbbells",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Free Weights, Dumbbells & Kettlebells > Dumbbells",
+"type": "Dumbbells",
 "src": "Shopify export",
 "handle": "nuobell-s-adjustable-dumbbells",
 "variants": [
@@ -975,7 +975,7 @@
 {
 "id": "hidden-globe-pull-up-bar",
 "title": "Colored Globe Pull up Bar",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Push Up & Pull Up Bars",
+"type": "Push Up & Pull Up Bars",
 "src": "Shopify export",
 "handle": "hidden-globe-pull-up-bar",
 "variants": [
@@ -1447,7 +1447,7 @@
 {
 "id": "swivel-shackles",
 "title": "Swivel Shackles",
-"type": "Hardware > Hardware Accessories > Chain, Wire & Rope > Chains",
+"type": "Chains",
 "src": "Shopify export",
 "handle": "swivel-shackles",
 "variants": [
@@ -1466,7 +1466,7 @@
 {
 "id": "blitz-air-bike-adjustment-assembly",
 "title": "Blitz Air Bike Seat Adjustment Assembly",
-"type": "Sporting Goods > Outdoor Recreation > Cycling > Bicycle Parts > Bicycle Wheel Parts > Bicycle Wheel Rims",
+"type": "Bicycle Wheel Rims",
 "src": "Shopify export",
 "handle": "blitz-air-bike-adjustment-assembly",
 "variants": [
@@ -1480,7 +1480,7 @@
 {
 "id": "dip-belt",
 "title": "Dip Belt",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Weight Lifting Belts",
+"type": "Weight Lifting Belts",
 "src": "Shopify export",
 "handle": "dip-belt",
 "variants": [
@@ -1494,7 +1494,7 @@
 {
 "id": "leg-extension-and-curl-machine",
 "title": "Legacy Leg Extension / Hamstring Curl Machine - Plate Loaded",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Weight Lifting Machines & Racks",
+"type": "Weight Lifting Machines & Racks",
 "src": "Shopify export",
 "handle": "leg-extension-and-curl-machine",
 "variants": [
@@ -1518,7 +1518,7 @@
 {
 "id": "cables-for-plate-loaded-cable-tower",
 "title": "Cables for Plate-Loaded Cable Tower",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Weight Lifting Machine & Exercise Bench Accessories",
+"type": "Weight Lifting Machine & Exercise Bench Accessories",
 "src": "Shopify export",
 "handle": "cables-for-plate-loaded-cable-tower",
 "variants": [
@@ -1537,7 +1537,7 @@
 {
 "id": "cables-for-weight-stack-cable-tower",
 "title": "Cables for Weight Stack Cable Tower",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Weight Lifting Machine & Exercise Bench Accessories > Cables",
+"type": "Cables",
 "src": "Shopify export",
 "handle": "cables-for-weight-stack-cable-tower",
 "variants": [
@@ -1556,7 +1556,7 @@
 {
 "id": "pad-for-safety-squat-bar",
 "title": "Pad for Safety Squat Bar",
-"type": "Sporting Goods > Fitness & General Exercise Equipment",
+"type": "Fitness & General Exercise Equipment",
 "src": "Shopify export",
 "handle": "pad-for-safety-squat-bar",
 "variants": [
@@ -1570,7 +1570,7 @@
 {
 "id": "90-hydra-manticore-lat-pulldown-attachment-cables",
 "title": "90\" Hydra/Manticore Lat Pulldown Attachment Cables",
-"type": "Electronics > Electronics Accessories > Cables > Audio & Video Cables",
+"type": "Audio & Video Cables",
 "src": "Shopify export",
 "handle": "90-hydra-manticore-lat-pulldown-attachment-cables",
 "variants": [
@@ -1584,7 +1584,7 @@
 {
 "id": "84-hydra-manticore-lat-pulldown-attachment-cables",
 "title": "84\" Hydra/Manticore Lat Pulldown Attachment Cables",
-"type": "Electronics > Electronics Accessories > Cables",
+"type": "Cables",
 "src": "Shopify export",
 "handle": "84-hydra-manticore-lat-pulldown-attachment-cables",
 "variants": [
@@ -1598,7 +1598,7 @@
 {
 "id": "72-hydra-manticore-lat-pulldown-attachment-cables",
 "title": "72\" Hydra/Manticore Lat Pulldown Attachment Cables",
-"type": "Electronics > Electronics Accessories > Cables",
+"type": "Cables",
 "src": "Shopify export",
 "handle": "72-hydra-manticore-lat-pulldown-attachment-cables",
 "variants": [
@@ -1612,7 +1612,7 @@
 {
 "id": "seal-row-pad-for-60mm-hydra-manticore",
 "title": "Seal Row Pad for 60mm/ Hydra/ Manticore",
-"type": "Business & Industrial > Heavy Machinery",
+"type": "Heavy Machinery",
 "src": "Shopify export",
 "handle": "seal-row-pad-for-60mm-hydra-manticore",
 "variants": [
@@ -1626,7 +1626,7 @@
 {
 "id": "end-cap-for-hydra-manticore-uprights-single",
 "title": "End Cap for Hydra / Manticore Uprights (Single)",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Free Weight Accessories",
+"type": "Free Weight Accessories",
 "src": "Shopify export",
 "handle": "end-cap-for-hydra-manticore-uprights-single",
 "variants": [
@@ -1640,7 +1640,7 @@
 {
 "id": "end-cap-for-60mm-uprights-single",
 "title": "End Cap for 60mm Uprights (Single)",
-"type": "Hardware > Hardware Accessories",
+"type": "Hardware Accessories",
 "src": "Shopify export",
 "handle": "end-cap-for-60mm-uprights-single",
 "variants": [
@@ -1654,7 +1654,7 @@
 {
 "id": "height-selector-knob-for-cable-tower",
 "title": "Height Selector Knob for Cable Tower",
-"type": "Electronics > Video > Satellite & Cable TV > Satellite Receivers",
+"type": "Satellite Receivers",
 "src": "Shopify export",
 "handle": "height-selector-knob-for-cable-tower",
 "variants": [
@@ -1682,7 +1682,7 @@
 {
 "id": "selectorized-lat-pulldown-low-row-machine-cables",
 "title": "Selectorized Lat Pulldown Low Row Machine Cables Part #41, #42",
-"type": "Electronics > Electronics Accessories > Cables",
+"type": "Cables",
 "src": "Shopify export",
 "handle": "selectorized-lat-pulldown-low-row-machine-cables",
 "variants": [
@@ -1696,7 +1696,7 @@
 {
 "id": "plate-loaded-lat-pulldown-low-row-machine-cables",
 "title": "Plate-Loaded Lat Pulldown Low Row Machine Cables Part #37, #38",
-"type": "Hardware > Power & Electrical Supplies > Electrical Wires & Cable",
+"type": "Electrical Wires & Cable",
 "src": "Shopify export",
 "handle": "plate-loaded-lat-pulldown-low-row-machine-cables",
 "variants": [
@@ -1724,7 +1724,7 @@
 {
 "id": "selectorized-all-in-one-trainer-cables",
 "title": "V1 Selectorized All-in-One Trainer Cables Part #30, #31, #32",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Weight Lifting Machines & Racks",
+"type": "Weight Lifting Machines & Racks",
 "src": "Shopify export",
 "handle": "selectorized-all-in-one-trainer-cables",
 "variants": [
@@ -1794,7 +1794,7 @@
 {
 "id": "buzzsaw-back-pad",
 "title": "Buzzsaw Back Pad",
-"type": "Sporting Goods > Outdoor Recreation > Skateboarding > Skateboard Parts > Skateboard Small Parts",
+"type": "Skateboard Small Parts",
 "src": "Shopify export",
 "handle": "buzzsaw-back-pad",
 "variants": [
@@ -1808,7 +1808,7 @@
 {
 "id": "adjustable-forearm-heavy-trainer",
 "title": "Adjustable Forearm Heavy Trainer",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Hand Exercisers",
+"type": "Hand Exercisers",
 "src": "Shopify export",
 "handle": "adjustable-forearm-heavy-trainer",
 "variants": [
@@ -1822,7 +1822,7 @@
 {
 "id": "aluminum-handles-pair-with-bearings",
 "title": "Aluminum Handles Pair with Bearings",
-"type": "Hardware > Tool Accessories > Hammer Accessories > Hammer Handles",
+"type": "Hammer Handles",
 "src": "Shopify export",
 "handle": "aluminum-handles-pair-with-bearings",
 "variants": [
@@ -2024,7 +2024,7 @@
 {
 "id": "hydra-manticore-lat-pulldown-plate-loaded-to-selectorized-upgrade-kit",
 "title": "Hydra / Manticore Lat Pulldown Plate Loaded to Selectorized Upgrade Kit",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Weight Lifting Machine & Exercise Bench Accessories",
+"type": "Weight Lifting Machine & Exercise Bench Accessories",
 "src": "Shopify export",
 "handle": "hydra-manticore-lat-pulldown-plate-loaded-to-selectorized-upgrade-kit",
 "variants": [
@@ -2100,7 +2100,7 @@
 {
 "id": "kolossos",
 "title": "THE KOLOSSOS - Smith Functional Trainer",
-"type": "Arts & Entertainment > Hobbies & Creative Arts > Musical Instrument & Orchestra Accessories > Musical Keyboard Accessories > Musical Keyboard Stands > Column Stands",
+"type": "Column Stands",
 "src": "Shopify export",
 "handle": "kolossos",
 "variants": [
@@ -2221,7 +2221,7 @@
 {
 "id": "kg-competition-bumper-plates",
 "title": "KG Competition Bumper Plates",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Free Weight Accessories > Weight Bar Collars",
+"type": "Weight Bar Collars",
 "src": "Shopify export",
 "handle": "kg-competition-bumper-plates",
 "variants": [
@@ -2250,7 +2250,7 @@
 {
 "id": "lb-competition-bumper-plates",
 "title": "LB Competition Bumper Plates",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Free Weight Accessories > Weight Bar Collars",
+"type": "Weight Bar Collars",
 "src": "Shopify export",
 "handle": "lb-competition-bumper-plates",
 "variants": [
@@ -2440,7 +2440,7 @@
 {
 "id": "tibialis-trainer-machine",
 "title": "Tibialis Trainer Machine",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Exercise Machine & Equipment Sets",
+"type": "Exercise Machine & Equipment Sets",
 "src": "Shopify export",
 "handle": "tibialis-trainer-machine",
 "variants": [
@@ -2622,7 +2622,7 @@
 {
 "id": "adjustable-macebell",
 "title": "Adjustable Macebell",
-"type": "Sporting Goods > Athletics > Wrestling > Wrestling Training Aids > Wrestling Dummies",
+"type": "Wrestling Dummies",
 "src": "Shopify export",
 "handle": "adjustable-macebell",
 "variants": [
@@ -2693,7 +2693,7 @@
 {
 "id": "residential-bumper-plate-tree",
 "title": "Residential Bumper Plate Tree",
-"type": "Home & Garden > Decor",
+"type": "Decor",
 "src": "Shopify export",
 "handle": "residential-bumper-plate-tree",
 "variants": [
@@ -2866,7 +2866,7 @@
 {
 "id": "weightlifting-platform",
 "title": "Weightlifting Platform",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Weight Lifting Machines & Racks > Weight Lifting Racks",
+"type": "Weight Lifting Racks",
 "src": "Shopify export",
 "handle": "weightlifting-platform",
 "variants": [
@@ -6272,7 +6272,7 @@
 {
 "id": "mark-wildman-adjustable-kettlebells",
 "title": "Mark Wildman Adjustable Kettlebell",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Free Weights, Dumbbells & Kettlebells",
+"type": "Free Weights, Dumbbells & Kettlebells",
 "src": "Shopify export",
 "handle": "mark-wildman-adjustable-kettlebells",
 "variants": [
@@ -7372,7 +7372,7 @@
 {
 "id": "body-bars-discontinued",
 "title": "Weighted Workout Body Bars",
-"type": "Sporting Goods > Exercise & Fitness > Weight Lifting > Free Weight Accessories > Weight Bars",
+"type": "Weight Bars",
 "src": "Shopify export",
 "handle": "body-bars-discontinued",
 "variants": [
@@ -8315,37 +8315,37 @@
 {
 "sku": "BOS-STCK",
 "title": "Bells of Steel Logo Sticker 6 x 6 inch",
-"weight_lb": 0.0
+"weight_lb": null
 },
 {
 "sku": "RISE-STCK",
 "title": "Rise Grind Sticker",
-"weight_lb": 0.0
+"weight_lb": null
 },
 {
 "sku": "KINGP-STCK",
 "title": "King Plates Sticker",
-"weight_lb": 0.0
+"weight_lb": null
 },
 {
 "sku": "FULE-STCK",
 "title": "Fueling Gainz Sticker",
-"weight_lb": 0.0
+"weight_lb": null
 },
 {
 "sku": "EET-STCK",
 "title": "Power Rack Stickers",
-"weight_lb": 0.0
+"weight_lb": null
 },
 {
 "sku": "CHMP-STCK",
 "title": "Champions Sticker",
-"weight_lb": 0.0
+"weight_lb": null
 },
 {
 "sku": "BMP-STCK",
 "title": "Bumper Sticker",
-"weight_lb": 0.0
+"weight_lb": null
 }
 ]
 },
@@ -8657,7 +8657,7 @@
 {
 "id": "weight-stack-ping",
 "title": "Weight Stack Pin",
-"type": "Sporting Goods > Fitness & General Exercise Equipment > Weight Lifting > Weight Lifting Machine & Exercise Bench Accessories",
+"type": "Weight Lifting Machine & Exercise Bench Accessories",
 "src": "Shopify export",
 "handle": "weight-stack-ping",
 "variants": [
@@ -9344,7 +9344,7 @@
 {
 "id": "lat-pulldown-row-attachment",
 "title": "Tall Rack Lat Pulldown / Row Attachment (for Brute and Utility Rack)",
-"type": "Sporting Goods > Exercise & Fitness > Weight Lifting > Weight Lifting Machine & Exercise Bench Accessories",
+"type": "Weight Lifting Machine & Exercise Bench Accessories",
 "src": "Shopify export",
 "handle": "lat-pulldown-row-attachment",
 "variants": [
@@ -9881,7 +9881,7 @@
 {
 "id": "suspension-spotter-straps",
 "title": "Suspension Spotter Straps And Bodyweight System",
-"type": "Sporting Goods > Exercise & Fitness > Weight Lifting > Weight Lifting Machine & Exercise Bench Accessories",
+"type": "Weight Lifting Machine & Exercise Bench Accessories",
 "src": "Shopify export",
 "handle": "suspension-spotter-straps",
 "variants": [

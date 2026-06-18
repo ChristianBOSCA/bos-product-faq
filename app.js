@@ -68,12 +68,20 @@ function sim(a,b){if(a===b)return 1;if(b.length>=3&&a.length>=3&&(b.includes(a)|
 function norm(s){return s.toLowerCase().replace(/[^a-z0-9]/g,"");}
 function score(p,query){
   const qt=tok(query); if(!qt.length) return 0;
+  const titleToks=tok(p.title);
   const hay=tok(p.title+" "+p.type+" "+p.variants.map(v=>v.sku+" "+v.title).join(" "));
   let total=0,matched=0;
   for(const q of qt){let best=0;for(const h of hay){const s=sim(q,h);if(s>best)best=s;}if(best>=.6){matched++;total+=best;}}
   if(!matched) return 0;
-  const bonus = norm(p.title).includes(norm(query))?1.2:0;
-  const skuhit = p.variants.some(v=>norm(query).length>=2 && norm(v.sku).includes(norm(query)))?0.8:0;
+  const nq=norm(query), nt=norm(p.title);
+  let bonus=0;
+  if(nt===nq) bonus+=10;                       // exact title match wins outright
+  else if(nt.startsWith(nq)) bonus+=4;          // title starts with the query
+  else if(nt.includes(nq)) bonus+=1.5;          // title merely contains the query
+  // coverage: how much of the title the query accounts for (favors the concise, on-point product)
+  const tset=new Set(titleToks), qset=new Set(qt);
+  if(tset.size){ bonus += 2.5 * ([...qset].filter(w=>tset.has(w)).length / tset.size); }
+  const skuhit = p.variants.some(v=>norm(query).length>=2 && norm(v.sku).includes(nq))?0.8:0;
   return total/qt.length + bonus + skuhit;
 }
 const qInput = document.getElementById("q");
@@ -124,7 +132,7 @@ async function apiPost(body){
 
 /* ---------- product view ---------- */
 async function openProduct(id){
-  CURRENT = CATALOG.find(p=>p.id===id); TAB = "unanswered";
+  CURRENT = CATALOG.find(p=>p.id===id); TAB = "unanswered"; SELVAR = null;
   renderProductShell();
   loadDocs(CURRENT.handle);
   document.getElementById("qlist").innerHTML = '<div class="spin">Loading questions…</div>';
@@ -147,15 +155,18 @@ async function loadDocs(handle){
   } catch(e){ /* docs are best-effort */ }
 }
 function rowsForProduct(){ return ROWS.filter(r=>r.product_id===CURRENT.id); }
-function counts(){ const l=rowsForProduct(); return { unanswered:l.filter(r=>r.status==="unanswered").length, pending:l.filter(r=>r.status==="pending").length, approved:l.filter(r=>r.status==="approved").length }; }
+function counts(){ const l=visibleRows(); return { unanswered:l.filter(r=>r.status==="unanswered").length, pending:l.filter(r=>r.status==="pending").length, approved:l.filter(r=>r.status==="approved").length }; }
 
 function renderProductShell(){
   const p = CURRENT;
   document.getElementById("panel").innerHTML = `
     <div class="card">
       <div class="prodhead"><span class="name">${esc(p.title)}</span><span class="type">${esc(p.type)}</span><span class="src">${esc(p.src)}</span></div>
-      <div class="varlabel">Variants / SKUs</div>
-      ${p.variants.map(v=>`<div class="variant"><span class="sku">${esc(v.sku)}</span><span>${esc(v.title)}</span>${v.weight_lb?`<span class="wt">${v.weight_lb} lb</span>`:""}${/attach|band|strap|\+/i.test(v.title)?'<span class="attflag">attachment</span>':''}</div>`).join("")}
+      <div class="varlabel">Variants / SKUs <span class="varhint">— click a SKU to see only its questions</span></div>
+      <div class="varlist">
+        <div class="variant varall selected" data-sku=""><span class="sku skuall">All variants</span><span>show every question for this product</span></div>
+        ${p.variants.map(v=>`<div class="variant" data-sku="${esc(v.sku)}"><span class="sku">${esc(v.sku)}</span><span>${esc(v.title)}</span>${v.weight_lb?`<span class="wt">${v.weight_lb} lb</span>`:""}${/attach|band|strap|\+/i.test(v.title)?'<span class="attflag">attachment</span>':''}</div>`).join("")}
+      </div>
       <div id="docs" class="docs"></div>
     </div>
     <div class="tabs" id="tabs"></div>
@@ -170,6 +181,19 @@ function renderProductShell(){
   document.getElementById("addbtn").onclick = () => document.getElementById("addbox").classList.toggle("hidden");
   document.getElementById("newq").addEventListener("input", onNewQInput);
   document.getElementById("saveq").onclick = saveQuestion;
+  document.querySelectorAll(".varlist .variant").forEach(el=>el.onclick=()=>selectVariant(el.dataset.sku||""));
+}
+let SELVAR = null;   // selected variant SKU, or null = all
+function visibleRows(){
+  const l = rowsForProduct();
+  if(!SELVAR) return l;
+  return l.filter(r => r.variant_sku === SELVAR || !r.variant_sku);  // SKU-specific + whole-product
+}
+function selectVariant(sku){
+  SELVAR = sku || null;
+  document.querySelectorAll(".varlist .variant").forEach(el =>
+    el.classList.toggle("selected", (el.dataset.sku||"") === (SELVAR||"")));
+  renderTabs(); renderList();
 }
 function renderTabs(){
   const c = counts();
@@ -196,7 +220,8 @@ async function saveQuestion(){
   const v = document.getElementById("newq").value.trim(); if(!v) return;
   const btn = document.getElementById("saveq"); btn.disabled = true;
   try {
-    await apiPost({ action:"add", product_id:CURRENT.id, product_title:CURRENT.title, variant_sku:_routeVsku||"", question:v });
+    const vsku = (_routeVsku !== undefined) ? _routeVsku : (SELVAR || "");
+    await apiPost({ action:"add", product_id:CURRENT.id, product_title:CURRENT.title, variant_sku:vsku, question:v });
     document.getElementById("newq").value=""; document.getElementById("addbox").classList.add("hidden"); _routeVsku=undefined;
     await apiGet(); TAB="unanswered"; renderTabs(); renderList(); toast("Question logged");
   } catch(e){ toast("Save failed: "+e.message, true); } finally { btn.disabled=false; }
@@ -205,7 +230,7 @@ async function saveQuestion(){
 /* ---------- question list ---------- */
 function skuChip(s){ return s ? `<span class="sku">${esc(s)}</span>` : `<span class="stamp" style="margin-left:0">whole product</span>`; }
 function renderList(){
-  const list = rowsForProduct().filter(r=>r.status===TAB);
+  const list = visibleRows().filter(r=>r.status===TAB);
   const ql = document.getElementById("qlist");
   if(!list.length){ ql.innerHTML = `<div class="spin">Nothing in ${TAB==="pending"?"pending approval":TAB}.</div>`; return; }
   ql.innerHTML = list.map(r=>{

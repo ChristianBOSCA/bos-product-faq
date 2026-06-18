@@ -41,8 +41,16 @@ document.getElementById("nameInput").addEventListener("keydown", e=>{ if(e.key==
 
 /* ---------- boot ---------- */
 async function boot(){
-  try { const res = await fetch("catalog.json"); CATALOG = (await res.json()).products || []; }
-  catch(e){ toast("Could not load catalog.json", true); }
+  // Prefer the live Shopify catalog; fall back to the bundled snapshot.
+  try {
+    const res = await fetch("/.netlify/functions/catalog");
+    if(res.ok){
+      const data = await res.json();
+      if(data.products && data.products.length){ CATALOG = data.products; return; }
+    }
+  } catch(e){ /* fall through to snapshot */ }
+  try { const res = await fetch("catalog.json"); CATALOG = (await res.json()).products || []; toast("Using offline catalog snapshot"); }
+  catch(e){ toast("Could not load catalog", true); }
 }
 
 /* ---------- toast ---------- */

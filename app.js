@@ -161,7 +161,7 @@ function renderProductShell(){
   const p = CURRENT;
   document.getElementById("panel").innerHTML = `
     <div class="card">
-      <div class="prodhead"><span class="name">${esc(p.title)}</span><span class="type">${esc(p.type)}</span><span class="src">${esc(p.src)}</span></div>
+      <div class="prodhead">${p.handle ? `<a class="name pdplink" href="https://bellsofsteel.com/products/${esc(p.handle)}" target="_blank" rel="noopener">${esc(p.title)} <span class="ext" aria-hidden="true">&#8599;</span></a>` : `<span class="name">${esc(p.title)}</span>`}<span class="type">${esc(p.type)}</span><span class="src">${esc(p.src)}</span></div>
       <div class="varlabel">Variants / SKUs <span class="varhint">— click a SKU to see only its questions</span></div>
       <div class="varlist">
         <div class="variant varall selected" data-sku=""><span class="sku skuall">All variants</span><span>show every question for this product</span></div>

@@ -61,6 +61,9 @@ main{max-width:860px;margin:0 auto;padding:24px 20px 80px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px}
 .prodhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .prodhead .name{font-size:17px;font-weight:600}
+.prodhead a.pdplink{color:var(--text);text-decoration:none;border-bottom:2px solid var(--orange)}
+.prodhead a.pdplink:hover{color:var(--orange)}
+.prodhead .ext{font-size:12px;color:var(--orange)}
 .prodhead .type{color:var(--faint);font-size:13px}
 .prodhead .src{margin-left:auto;color:var(--faint);font-size:12px}
 .varlabel{font-size:12px;color:var(--muted);margin:14px 0 6px}

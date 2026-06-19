@@ -107,6 +107,14 @@ main{max-width:860px;margin:0 auto;padding:24px 20px 80px}
 .flag.dup{background:var(--amber-bg);color:var(--amber-fg)}
 .flag.route{background:var(--purple-bg);color:var(--purple-fg)}
 .flag a{color:inherit;font-weight:600;text-decoration:underline;cursor:pointer}
+.duplink{color:var(--amber-fg);text-decoration:underline}
+.dupsku{font-size:11px;background:#fff;border:1px solid var(--amber-fg);color:var(--amber-fg);border-radius:6px;padding:0 5px;white-space:nowrap}
+.dupsku.wp{border-style:dashed}
+.applies{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:6px 0 10px}
+.applylbl{font-size:12px;color:var(--muted)}
+.achip{font-size:12px;padding:3px 10px;border:1px solid var(--line2);border-radius:14px;background:#fff;cursor:pointer}
+.achip.on{background:var(--orange);color:#fff;border-color:var(--orange)}
+.qitem.flash{outline:2px solid var(--orange);outline-offset:2px}
 
 .qitem{border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:10px;background:var(--surface)}
 .qitem.pending{background:var(--gray-bg);border-color:var(--line2)}
@@ -138,6 +146,17 @@ main{max-width:860px;margin:0 auto;padding:24px 20px 80px}
 .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;cursor:default}
 .stat[data-go]{cursor:pointer}
 .stat[data-go]:hover{border-color:var(--orange)}
+.stat.active{border-color:var(--orange);background:#fff5ef}
+.qhead2{display:flex;align-items:center;gap:8px;margin:0 0 12px}
+.qhead2 .lab{font-weight:600;font-size:15px}
+.qhead2 .btn{margin-left:auto}
+.qctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.qctl select{font-size:13px;padding:5px 8px;border:1px solid var(--line2);border-radius:8px;background:#fff}
+.qctl-count{font-size:12px;color:var(--faint)}
+.topic{font-size:11px;background:var(--purple-bg);color:var(--purple-fg);padding:1px 7px;border-radius:6px;text-transform:capitalize}
+.prodline{font-size:12px;color:var(--faint);margin-top:3px}
+.prodchip{color:var(--text);border-bottom:1px solid var(--orange);cursor:pointer}
+.prodchip:hover{color:var(--orange)}
 .stat .n{font-size:28px;font-weight:700}
 .stat .l{font-size:12px;color:var(--muted);margin-top:2px}
 .queue{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}

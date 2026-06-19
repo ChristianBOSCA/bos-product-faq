@@ -52,36 +52,80 @@ async function boot(){
     catch(e2){ toast("Could not load catalog", true); }
   }
   try { await apiGet(); } catch(e){ /* questions load for dashboard + global search */ }
-  if(!CURRENT) renderDashboard();
+  if(!checkDeepLink() && !CURRENT) renderDashboard();
   const bEl = document.querySelector(".brand");
   if(bEl){ bEl.style.cursor = "pointer"; bEl.title = "Home"; bEl.onclick = goHome; }
 }
 function titleFor(id){ const p = CATALOG.find(x=>x.id===id); return p ? p.title : id; }
 async function goHome(){
-  CURRENT = null; suggBox.classList.add("hidden"); qInput.value = "";
+  CURRENT = null; suggBox.classList.add("hidden"); qInput.value = ""; location.hash = "";
   try { await apiGet(); } catch(e){}
   renderDashboard();
 }
+function checkDeepLink(){
+  const m = (location.hash||"").match(/q=([^&]+)/); if(!m) return false;
+  const id = decodeURIComponent(m[1]); const r = ROWS.find(x=>x.id===id); if(!r) return false;
+  openProduct(r.product_id).then(()=>{ TAB = r.status; renderTabs(); renderList();
+    setTimeout(()=>{ const el = document.querySelector(`[data-qid="${(window.CSS&&CSS.escape)?CSS.escape(id):id}"]`); if(el){ el.scrollIntoView({behavior:"smooth",block:"center"}); el.classList.add("flash"); setTimeout(()=>el.classList.remove("flash"),2200); } }, 250);
+  });
+  return true;
+}
+window.addEventListener("hashchange", ()=>{ if(USER_NAME) checkDeepLink(); });
+let GTAB = "unanswered", GSORT = "oldest", GTOPIC = "all", GTYPE = "all";
+let _selTopics = new Set(), _topicsTouched = false;
+const TOPICS = ["shipping","assembly","compatibility","specs","sizing","warranty","maintenance"];
+const TOPIC_KW = {
+  shipping:["ship","shipping","delivery","freight","tracking","customs","duty","arrive"],
+  assembly:["assembl","install","bolt","mount","hardware","tools","setup"],
+  compatibility:["compatible","compatibility","fit","fits","work with","works with","attach","adapter","interchang"],
+  specs:["dimension","weight","capacity","gauge","material","spec","diameter","durometer","thickness"],
+  sizing:["size","sizing","tall","height","width","depth","footprint","length"],
+  warranty:["warranty","guarantee","return","refund","replace"],
+  maintenance:["maintenance","lube","lubric","clean","rust","care","oil"]
+};
+function topicOf(r){
+  const tagged = (r.tags||"").toLowerCase();
+  for(const t of TOPICS){ if(tagged.split(/[,\s]+/).includes(t)) return t; }
+  const q = (r.question+" "+(r.answer||"")).toLowerCase();
+  for(const t of TOPICS){ if((TOPIC_KW[t]||[]).some(k=>q.includes(k))) return t; }
+  return "other";
+}
+function typeOf(r){ const p = CATALOG.find(x=>x.id===r.product_id); return p ? (p.type||"") : ""; }
+function refresh(){ if(CURRENT){ renderTabs(); renderList(); } else renderDashboard(); }
 function renderDashboard(){
-  const pend = ROWS.filter(r=>r.status==="pending");
-  const un   = ROWS.filter(r=>r.status==="unanswered");
-  const appr = ROWS.filter(r=>r.status==="approved");
   const panel = document.getElementById("panel");
+  const counts = { unanswered:0, pending:0, approved:0 };
+  ROWS.forEach(r=>{ if(counts[r.status]!=null) counts[r.status]++; });
+  const defs = [["unanswered","Unanswered"],["pending","Pending approval"],["approved","Approved"]];
+  let list = ROWS.filter(r=>r.status===GTAB);
+  if(GTOPIC!=="all") list = list.filter(r=>topicOf(r)===GTOPIC);
+  if(GTYPE!=="all")  list = list.filter(r=>typeOf(r)===GTYPE);
+  list = list.slice().sort((a,b)=>{ const da=(a.created_at||a.answered_at||""), db=(b.created_at||b.answered_at||""); return GSORT==="oldest" ? da.localeCompare(db) : db.localeCompare(da); });
+  const types = [...new Set(ROWS.map(typeOf).filter(Boolean))].sort();
+  const opt = (val,cur,lab)=>`<option value="${esc(val)}" ${val===cur?"selected":""}>${esc(lab)}</option>`;
   panel.innerHTML = `
     <div class="dash">
       <div class="stats">
-        <div class="stat" data-go="pending"><div class="n">${pend.length}</div><div class="l">Pending approval</div></div>
-        <div class="stat" data-go="unanswered"><div class="n">${un.length}</div><div class="l">Unanswered</div></div>
-        <div class="stat"><div class="n">${appr.length}</div><div class="l">Approved</div></div>
+        ${defs.map(([k,l])=>`<div class="stat ${GTAB===k?'active':''}" data-go="${k}"><div class="n">${counts[k]}</div><div class="l">${l}</div></div>`).join("")}
       </div>
-      ${pend.length ? `<div class="queue"><div class="qh">Waiting for a lead's approval</div>${pend.slice(0,25).map(r=>`<div class="qrow" data-pid="${esc(r.product_id)}" data-tab="pending"><span class="qq">${esc(r.question)}</span><span class="qp">${esc(titleFor(r.product_id))}</span></div>`).join("")}${pend.length>25?`<div class="more">+ ${pend.length-25} more — open a product to see the rest</div>`:""}</div>` : `<div class="queue"><div class="qh">Nothing waiting for approval right now.</div></div>`}
-      <div class="dashhint">Search above for a product or a question, or click an item to open it.</div>
+      <div class="qctl">
+        <select id="fsort">${opt("oldest",GSORT,"Oldest first")}${opt("newest",GSORT,"Newest first")}</select>
+        <select id="ftopic">${opt("all",GTOPIC,"All topics")}${TOPICS.concat(["other"]).map(t=>opt(t,GTOPIC,t)).join("")}</select>
+        <select id="ftype">${opt("all",GTYPE,"All types")}${types.map(t=>opt(t,GTYPE,t)).join("")}</select>
+        <span class="qctl-count">${list.length} shown</span>
+        ${GTAB==="pending"&&list.length?`<button class="btn sm primary" id="bulkappr" style="margin-left:auto">Approve all ${list.length}</button>`:""}
+      </div>
+      <div id="glist"></div>
+      <div class="dashhint">Answer or approve right here — or search above to open a specific product.</div>
     </div>`;
-  panel.querySelectorAll(".qrow").forEach(el=>el.onclick=()=>openItem(el.dataset.pid, el.dataset.tab));
-  panel.querySelectorAll(".stat[data-go]").forEach(el=>el.onclick=()=>{
-    const first = (el.dataset.go==="pending"?pend:un)[0];
-    if(first) openItem(first.product_id, el.dataset.go);
-  });
+  panel.querySelectorAll(".stat[data-go]").forEach(el=>el.onclick=()=>{ GTAB=el.dataset.go; EDITING=null; MOVING=null; renderDashboard(); });
+  document.getElementById("fsort").onchange = e=>{ GSORT=e.target.value; renderDashboard(); };
+  document.getElementById("ftopic").onchange = e=>{ GTOPIC=e.target.value; renderDashboard(); };
+  document.getElementById("ftype").onchange = e=>{ GTYPE=e.target.value; renderDashboard(); };
+  const gl = document.getElementById("glist");
+  if(!list.length){ gl.innerHTML = `<div class="spin">Nothing ${GTAB==="pending"?"pending approval":GTAB} right now.</div>`; }
+  else { gl.innerHTML = list.map(r=>itemHTML(r,true)).join(""); wireItems(gl); }
+  const ba = document.getElementById("bulkappr"); if(ba) ba.onclick=()=>approveAll(list.map(r=>r.id));
 }
 function openItem(pid, tab){ openProduct(pid).then(()=>{ TAB = tab; renderTabs(); renderList(); }); }
 
@@ -136,6 +180,9 @@ qInput.addEventListener("input", () => {
   suggBox.innerHTML = html; suggBox.classList.remove("hidden");
   suggBox.querySelectorAll(".row[data-id]").forEach(n=>n.onclick=()=>{ openProduct(n.dataset.id); suggBox.classList.add("hidden"); qInput.value=""; });
   suggBox.querySelectorAll(".qrowsg").forEach(n=>n.onclick=()=>{ openItem(n.dataset.pid, n.dataset.tab); suggBox.classList.add("hidden"); qInput.value=""; });
+});
+qInput.addEventListener("keydown", e => {
+  if(e.key==="Enter"){ const first = suggBox.querySelector(".row[data-id], .qrowsg"); if(first){ e.preventDefault(); first.click(); } }
 });
 document.addEventListener("click", e => { if(!suggBox.contains(e.target) && e.target!==qInput) suggBox.classList.add("hidden"); });
 
@@ -216,20 +263,44 @@ function renderProductShell(){
     <div class="addbox hidden" id="addbox">
       <input id="newq" type="text" placeholder="Type the question…" />
       <div class="flag dup hidden" id="dup"></div>
-      <div class="flag route hidden" id="route"></div>
-      <button class="btn primary" id="saveq">Add to Unanswered</button>
+      <div class="applies"><span class="applylbl">Applies to:</span><span id="applychips"></span></div>
+      <div class="applies"><span class="applylbl">Topics:</span><span id="topicchips"></span></div>
+      <button class="btn primary" id="saveq">Add</button>
     </div>
     <div id="qlist"></div>`;
-  document.getElementById("addbtn").onclick = () => document.getElementById("addbox").classList.toggle("hidden");
+  document.getElementById("addbtn").onclick = () => {
+    const box = document.getElementById("addbox");
+    const opening = box.classList.contains("hidden");
+    box.classList.toggle("hidden");
+    if(opening){ _selSkus = new Set(SELVAR?[SELVAR]:[]); _chipsTouched=false; _selTopics = new Set(); _topicsTouched=false; renderApplies(); renderTopics(); document.getElementById("newq").focus(); }
+  };
   document.getElementById("newq").addEventListener("input", onNewQInput);
   document.getElementById("saveq").onclick = saveQuestion;
   document.querySelectorAll(".varlist .variant").forEach(el=>el.onclick=()=>selectVariant(el.dataset.sku||""));
 }
-let SELVAR = null;   // selected variant SKU, or null = all
+let SELVAR = null;   // selected variant SKU for viewing, or null = all
+function skuListOf(r){ return (r.variant_sku||"").split(",").map(s=>s.trim()).filter(Boolean); }
 function visibleRows(){
   const l = rowsForProduct();
   if(!SELVAR) return l;
-  return l.filter(r => r.variant_sku === SELVAR || !r.variant_sku);  // SKU-specific + whole-product
+  return l.filter(r => { const cs = skuListOf(r); return cs.length ? cs.includes(SELVAR) : true; });  // sku-specific (any of) + whole-product
+}
+function renderApplies(){
+  const box = document.getElementById("applychips"); if(!box || !CURRENT) return;
+  const chips = [`<button class="achip ${_selSkus.size===0?'on':''}" data-sku="">Whole product</button>`]
+    .concat(CURRENT.variants.map(v=>`<button class="achip ${_selSkus.has(v.sku)?'on':''}" data-sku="${esc(v.sku)}" title="${esc(v.title)}">${esc(v.sku)}</button>`));
+  box.innerHTML = chips.join("");
+  box.querySelectorAll(".achip").forEach(b=>b.onclick=()=>{
+    _chipsTouched = true;
+    const s = b.dataset.sku;
+    if(!s) _selSkus.clear(); else { _selSkus.has(s) ? _selSkus.delete(s) : _selSkus.add(s); }
+    renderApplies(); onNewQInput();
+  });
+}
+function renderTopics(){
+  const box = document.getElementById("topicchips"); if(!box) return;
+  box.innerHTML = TOPICS.map(t=>`<button class="achip ${_selTopics.has(t)?'on':''}" data-topic="${t}">${t}</button>`).join("");
+  box.querySelectorAll(".achip").forEach(b=>b.onclick=()=>{ const t=b.dataset.topic; _selTopics.has(t)?_selTopics.delete(t):_selTopics.add(t); _topicsTouched=true; renderTopics(); });
 }
 function selectVariant(sku){
   SELVAR = sku || null;
@@ -244,33 +315,48 @@ function renderTabs(){
   document.getElementById("tabs").querySelectorAll(".tab").forEach(b=>b.onclick=()=>{ TAB=b.dataset.tab; renderTabs(); renderList(); });
   document.getElementById("tablab").textContent = defs.find(d=>d[0]===TAB)[1];
 }
-let _routeVsku;
+let _selSkus = new Set();      // SKUs the new question applies to ([] = whole product)
+let _chipsTouched = false;
 function onNewQInput(){
   const v = document.getElementById("newq").value;
-  const dup = document.getElementById("dup"), route = document.getElementById("route");
+  // auto-suggest a SKU scope as you type, unless the user has set chips manually
+  if(!_chipsTouched){
+    const hit = routeVariant(CURRENT, v);
+    if(hit){ _selSkus = new Set([hit.sku]); renderApplies(); }
+    else if(!SELVAR && _selSkus.size){ _selSkus.clear(); renderApplies(); }
+  }
+  if(!_topicsTouched){ const t = topicOf({question:v, tags:""}); _selTopics = new Set(t!=="other"?[t]:[]); renderTopics(); }
+  // duplicate detection — only flag questions that share a SKU (or are whole-product)
+  const dup = document.getElementById("dup");
   const words = v.toLowerCase().split(/\s+/).filter(w=>w.length>3);
-  const sim2 = rowsForProduct().filter(r=>{ const iw=r.question.toLowerCase(); return words.filter(w=>iw.includes(w)).length>=2; });
-  if(v.trim().length>6 && sim2.length){ dup.classList.remove("hidden"); dup.innerHTML = "Possible duplicate — is this the same as:<br>" + sim2.map(s=>"• "+esc(s.question)).join("<br>"); }
-  else dup.classList.add("hidden");
-  const hit = routeVariant(CURRENT, v);
-  if(hit){ route.classList.remove("hidden"); route.innerHTML = `Looks specific to <b>${esc(hit.sku)}</b>. <a id="rt">Scope to it</a> · <a id="rb">Keep on whole product</a>`;
-    document.getElementById("rt").onclick=()=>{ _routeVsku=hit.sku; route.innerHTML="Scoped to "+esc(hit.sku); };
-    document.getElementById("rb").onclick=()=>{ _routeVsku=""; route.innerHTML="Kept on whole product"; };
-  } else { route.classList.add("hidden"); _routeVsku=undefined; }
+  const tgt = [..._selSkus];
+  const cands = rowsForProduct().filter(r=>{
+    const iw = r.question.toLowerCase();
+    if(words.filter(w=>iw.includes(w)).length < 2) return false;
+    const cs = skuListOf(r);
+    if(!cs.length || !tgt.length) return true;      // either side is whole-product
+    return cs.some(x=>tgt.includes(x));             // same specific SKU
+  });
+  if(v.trim().length>6 && cands.length){
+    dup.classList.remove("hidden");
+    dup.innerHTML = "Possible duplicate — is this the same as:<br>" + cands.slice(0,6).map(s=>
+      `• <a href="#q=${encodeURIComponent(s.id)}" target="_blank" rel="noopener" class="duplink">${esc(s.question)}</a> ${s.variant_sku?`<span class="dupsku">${esc(s.variant_sku)}</span>`:`<span class="dupsku wp">whole product</span>`}`
+    ).join("<br>");
+  } else dup.classList.add("hidden");
 }
 async function saveQuestion(){
   const v = document.getElementById("newq").value.trim(); if(!v) return;
   const btn = document.getElementById("saveq"); btn.disabled = true;
   try {
-    const vsku = (_routeVsku !== undefined) ? _routeVsku : (SELVAR || "");
-    await apiPost({ action:"add", product_id:CURRENT.id, product_title:CURRENT.title, variant_sku:vsku, question:v });
-    document.getElementById("newq").value=""; document.getElementById("addbox").classList.add("hidden"); _routeVsku=undefined;
+    const vsku = [..._selSkus].join(",");   // "" = whole product, "A,B" = applies to A and B
+    await apiPost({ action:"add", product_id:CURRENT.id, product_title:CURRENT.title, variant_sku:vsku, question:v, tags:[..._selTopics].join(",") });
+    document.getElementById("newq").value=""; document.getElementById("addbox").classList.add("hidden");
     await apiGet(); TAB="unanswered"; renderTabs(); renderList(); toast("Question logged");
   } catch(e){ toast("Save failed: "+e.message, true); } finally { btn.disabled=false; }
 }
 
 /* ---------- question list ---------- */
-function skuChip(s){ return s ? `<span class="sku">${esc(s)}</span>` : `<span class="stamp" style="margin-left:0">whole product</span>`; }
+function skuChip(s){ const list=(s||"").split(",").map(x=>x.trim()).filter(Boolean); return list.length ? list.map(x=>`<span class="sku">${esc(x)}</span>`).join(" ") : `<span class="stamp" style="margin-left:0">whole product</span>`; }
 let EDITING = null;
 let MOVING = null;
 function fmt(a){ return esc(a).replace(/\n/g,"<br>"); }
@@ -281,57 +367,57 @@ function staleBadge(r){
   if(days>182){ const mo=Math.max(1,Math.round(days/30)); return `<span class="stale">&#9888; review — verified ${mo} mo ago</span>`; }
   return "";
 }
-function renderList(){
-  const list = visibleRows().filter(r=>r.status===TAB);
-  const ql = document.getElementById("qlist");
-  if(!list.length){ ql.innerHTML = `<div class="spin">Nothing in ${TAB==="pending"?"pending approval":TAB}.</div>`; return; }
-  ql.innerHTML = list.map(r=>{
-    if(EDITING===r.id){
-      return `<div class="qitem editing">
-        <label class="edlbl">Question</label>
-        <input class="ed-q" data-eq="${r.id}" value="${esc(r.question)}" />
-        <label class="edlbl">Answer</label>
-        <textarea class="ed-a" data-ea="${r.id}" rows="4" placeholder="Answer…">${esc(r.answer)}</textarea>
-        <div class="qctrls"><button class="btn sm primary" data-save="${r.id}">Save</button><button class="btn sm" data-cancel="1">Cancel</button>${r.status==="approved"?'<span class="hint">editing the answer sends it back for re-approval</span>':''}</div>
-      </div>`;
-    }
-    let ans;
-    if(r.status==="unanswered"){
-      ans = `<div class="ansrow"><input data-ans="${r.id}" placeholder="Know this? Answer it…" />
-        <div class="srcrow"><input data-src="${r.id}" placeholder="Source link (ClickUp, Drive…) — optional" /></div></div>`;
-    } else {
-      ans = `<div class="ans">${fmt(r.answer)}</div>${r.source_link?`<div style="margin-top:4px"><a class="link" href="${esc(r.source_link)}" target="_blank" rel="noopener">source ↗</a></div>`:""}`;
-    }
-    if(MOVING===r.id){
-      return `<div class="qitem editing">
-        <div class="qtop"><span class="qtext">${esc(r.question)}</span></div>
-        <label class="edlbl">Move to which product?</label>
-        <input class="mv-q" data-mvq="${r.id}" placeholder="Search a product…" autocomplete="off" />
-        <div class="mv-results" data-mvr="${r.id}"></div>
-        <div class="qctrls"><button class="btn sm" data-mvcancel="1">Cancel</button><span class="hint">currently under: ${esc(r.product_title||r.product_id)}</span></div>
-      </div>`;
-    }
-    let ctrls = "";
-    if(r.status==="pending") ctrls += `<label class="check"><input type="checkbox" data-appr="${r.id}"> Approve</label>`;
-    ctrls += `<button class="btn sm" data-edit="${r.id}">Edit</button>`;
-    ctrls += `<button class="btn sm" data-move="${r.id}">Move</button>`;
-    if(r.status!=="unanswered") ctrls += `<button class="btn sm" data-copy="${r.id}">Copy</button>`;
-    return `<div class="qitem ${r.status==='pending'?'pending':''}">
-      <div class="qtop"><span class="qtext">${esc(r.question)}</span>${skuChip(r.variant_sku)}</div>
-      ${ans}
-      <div class="qmeta">${staleBadge(r)}<span class="stamp">${r.answered_by?esc(initials(r.answered_by))+" · ":""}${esc((r.last_verified_at||r.answered_at||r.created_at||"").slice(0,10))}${r.last_verified_at?" · last verified":""}</span></div>
-      <div class="qctrls">${ctrls}<button class="btn sm danger" data-del="${r.id}" style="margin-left:auto">Delete</button></div>
+function prodChip(r){ return `<a class="prodchip" data-open="${esc(r.product_id)}">${esc(r.product_title||r.product_id)}</a>`; }
+function itemHTML(r, showProduct){
+  if(EDITING===r.id){
+    return `<div class="qitem editing">
+      ${showProduct?`<div class="prodline">in ${prodChip(r)}</div>`:""}
+      <label class="edlbl">Question</label>
+      <input class="ed-q" data-eq="${r.id}" value="${esc(r.question)}" />
+      <label class="edlbl">Answer</label>
+      <textarea class="ed-a" data-ea="${r.id}" rows="4" placeholder="Answer…">${esc(r.answer)}</textarea>
+      <div class="qctrls"><button class="btn sm primary" data-save="${r.id}">Save</button><button class="btn sm" data-cancel="1">Cancel</button>${r.status==="approved"?'<span class="hint">editing the answer sends it back for re-approval</span>':''}</div>
     </div>`;
-  }).join("");
-
+  }
+  if(MOVING===r.id){
+    return `<div class="qitem editing">
+      <div class="qtop"><span class="qtext">${esc(r.question)}</span></div>
+      <label class="edlbl">Move to which product?</label>
+      <input class="mv-q" data-mvq="${r.id}" placeholder="Search a product…" autocomplete="off" />
+      <div class="mv-results" data-mvr="${r.id}"></div>
+      <div class="qctrls"><button class="btn sm" data-mvcancel="1">Cancel</button><span class="hint">currently under: ${esc(r.product_title||r.product_id)}</span></div>
+    </div>`;
+  }
+  let ans;
+  if(r.status==="unanswered"){
+    ans = `<div class="ansrow"><input data-ans="${r.id}" placeholder="Know this? Answer it…" />
+      <div class="srcrow"><input data-src="${r.id}" placeholder="Source link (ClickUp, Drive…) — optional" /></div></div>`;
+  } else {
+    ans = `<div class="ans">${fmt(r.answer)}</div>${r.source_link?`<div style="margin-top:4px"><a class="link" href="${esc(r.source_link)}" target="_blank" rel="noopener">source ↗</a></div>`:""}`;
+  }
+  let ctrls = "";
+  if(r.status==="pending") ctrls += `<label class="check"><input type="checkbox" data-appr="${r.id}"> Approve</label>`;
+  ctrls += `<button class="btn sm" data-edit="${r.id}">Edit</button>`;
+  ctrls += `<button class="btn sm" data-move="${r.id}">Move</button>`;
+  if(r.status!=="unanswered") ctrls += `<button class="btn sm" data-copy="${r.id}">Copy</button>`;
+  return `<div class="qitem ${r.status==='pending'?'pending':''}" data-qid="${esc(r.id)}">
+    <div class="qtop"><span class="qtext">${esc(r.question)}</span>${skuChip(r.variant_sku)}</div>
+    ${showProduct?`<div class="prodline">in ${prodChip(r)}</div>`:""}
+    ${ans}
+    <div class="qmeta">${topicOf(r)!=="other"?`<span class="topic">${esc(topicOf(r))}</span>`:""}${staleBadge(r)}<span class="stamp">${r.answered_by?esc(initials(r.answered_by))+" · ":""}${esc((r.last_verified_at||r.answered_at||r.created_at||"").slice(0,10))}${r.last_verified_at?" · last verified":""}</span></div>
+    <div class="qctrls">${ctrls}<button class="btn sm danger" data-del="${r.id}" style="margin-left:auto">Delete</button></div>
+  </div>`;
+}
+function wireItems(ql){
   ql.querySelectorAll("[data-ans]").forEach(inp=>inp.addEventListener("keydown", e=>{
     if(e.key==="Enter" && inp.value.trim()){ const src=ql.querySelector(`[data-src="${inp.dataset.ans}"]`); submitAnswer(inp.dataset.ans, inp.value.trim(), src?src.value.trim():""); }
   }));
   ql.querySelectorAll("[data-appr]").forEach(c=>c.onchange=()=>approve(c.dataset.appr));
-  ql.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{ EDITING=b.dataset.edit; MOVING=null; renderList(); });
-  ql.querySelectorAll("[data-cancel]").forEach(b=>b.onclick=()=>{ EDITING=null; renderList(); });
-  ql.querySelectorAll("[data-move]").forEach(b=>b.onclick=()=>{ MOVING=b.dataset.move; EDITING=null; renderList(); });
-  ql.querySelectorAll("[data-mvcancel]").forEach(b=>b.onclick=()=>{ MOVING=null; renderList(); });
+  ql.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{ EDITING=b.dataset.edit; MOVING=null; refresh(); });
+  ql.querySelectorAll("[data-cancel]").forEach(b=>b.onclick=()=>{ EDITING=null; refresh(); });
+  ql.querySelectorAll("[data-move]").forEach(b=>b.onclick=()=>{ MOVING=b.dataset.move; EDITING=null; refresh(); });
+  ql.querySelectorAll("[data-mvcancel]").forEach(b=>b.onclick=()=>{ MOVING=null; refresh(); });
+  ql.querySelectorAll("[data-open]").forEach(a=>a.onclick=()=>openProduct(a.dataset.open));
   const mvIn = ql.querySelector("[data-mvq]");
   if(mvIn){
     mvIn.focus();
@@ -345,36 +431,47 @@ function renderList(){
   }
   ql.querySelectorAll("[data-save]").forEach(b=>b.onclick=()=>{ const id=b.dataset.save; const q=ql.querySelector(`[data-eq="${id}"]`).value.trim(); const a=ql.querySelector(`[data-ea="${id}"]`).value.trim(); editItem(id,q,a); });
   ql.querySelectorAll("[data-copy]").forEach(b=>b.onclick=()=>{ const r=ROWS.find(x=>x.id===b.dataset.copy); if(r) navigator.clipboard.writeText(r.answer||"").then(()=>toast("Answer copied")).catch(()=>toast("Copy failed",true)); });
-  ql.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ if(confirm("Delete this question?")) mutate({action:"delete", id:b.dataset.del}, null, "Deleted"); });
+  ql.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ if(confirm("Delete this question?")) mutate({action:"delete", id:b.dataset.del}, "Deleted"); });
+}
+function renderList(){
+  const list = visibleRows().filter(r=>r.status===TAB);
+  const ql = document.getElementById("qlist");
+  if(!list.length){ ql.innerHTML = `<div class="spin">Nothing in ${TAB==="pending"?"pending approval":TAB}.</div>`; return; }
+  ql.innerHTML = list.map(r=>itemHTML(r,false)).join("");
+  wireItems(ql);
 }
 async function editItem(id,q,a){
   if(!q){ toast("Question can't be empty", true); return; }
-  try { await apiPost({action:"edit", id, question:q, answer:a}); EDITING=null; await apiGet(); renderTabs(); renderList(); toast("Saved"); }
+  try { await apiPost({action:"edit", id, question:q, answer:a}); EDITING=null; await apiGet(); refresh(); toast("Saved"); }
   catch(e){ toast("Save failed: "+e.message, true); }
 }
 async function reassign(id, p){
   if(!p) return;
-  try { await apiPost({action:"edit", id, product_id:p.id, product_title:p.title, variant_sku:""}); MOVING=null; await apiGet(); renderTabs(); renderList(); toast("Moved to "+p.title); }
+  try { await apiPost({action:"edit", id, product_id:p.id, product_title:p.title, variant_sku:""}); MOVING=null; await apiGet(); refresh(); toast("Moved to "+p.title); }
   catch(e){ toast("Move failed: "+e.message, true); }
 }
 async function submitAnswer(id, answer, source_link){
-  try { await apiPost({ action:"answer", id, answer, source_link }); await apiGet(); TAB="pending"; renderTabs(); renderList(); toast("Answer saved — pending approval"); }
+  try { await apiPost({ action:"answer", id, answer, source_link }); await apiGet(); refresh(); toast("Answer saved — pending approval"); }
   catch(e){ toast("Save failed: "+e.message, true); }
 }
 async function approve(id){
-  try {
-    await apiPost({ action:"approve", id, lead_pin: LEAD_PIN });
-    await apiGet(); TAB="approved"; renderTabs(); renderList(); toast("Approved");
-  } catch(e){
-    if(/PIN/i.test(e.message)){
-      const pin = prompt("Team Lead PIN required to approve:");
-      if(pin){ LEAD_PIN = pin; localStorage.setItem("faq_leadpin", pin); return approve(id); }
-      renderList();
-    } else { toast("Approve failed: "+e.message, true); renderList(); }
+  try { await apiPost({ action:"approve", id, lead_pin: LEAD_PIN }); await apiGet(); refresh(); toast("Approved"); }
+  catch(e){
+    if(/PIN/i.test(e.message)){ const pin = prompt("Team Lead PIN required to approve:"); if(pin){ LEAD_PIN = pin; localStorage.setItem("faq_leadpin", pin); return approve(id); } refresh(); }
+    else { toast("Approve failed: "+e.message, true); refresh(); }
   }
 }
-async function mutate(body, gotoTab, okMsg){
-  try { await apiPost(body); await apiGet(); if(gotoTab) TAB=gotoTab; renderTabs(); renderList(); toast(okMsg); }
+async function approveAll(ids){
+  if(!ids || !ids.length) return;
+  if(!confirm(`Approve all ${ids.length} shown?`)) return;
+  try { for(const id of ids){ await apiPost({ action:"approve", id, lead_pin: LEAD_PIN }); } await apiGet(); refresh(); toast(`Approved ${ids.length}`); }
+  catch(e){
+    if(/PIN/i.test(e.message)){ const pin = prompt("Team Lead PIN required to approve:"); if(pin){ LEAD_PIN = pin; localStorage.setItem("faq_leadpin", pin); return approveAll(ids); } }
+    else toast("Bulk approve failed: "+e.message, true);
+  }
+}
+async function mutate(body, okMsg){
+  try { await apiPost(body); await apiGet(); refresh(); toast(okMsg); }
   catch(e){ toast("Action failed: "+e.message, true); }
 }
 

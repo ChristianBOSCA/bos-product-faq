@@ -12,8 +12,25 @@
     <img src="logo.svg" alt="Bells of Steel — Proudly Canadian" class="logo" />
     <span class="faqtag">Product FAQ</span>
   </div>
+  <button id="fbbtn" class="fbbtn hidden">Report / Suggest</button>
   <div class="userbox" id="userbox"></div>
 </header>
+
+<div id="fbmodal" class="modal hidden">
+  <div class="modalcard">
+    <div class="modalhead"><span>Report a bug or suggest an improvement</span><button id="fbclose" class="modalx" aria-label="Close">&times;</button></div>
+    <div class="modaltabs">
+      <button class="mtab active" data-mt="submit">Submit</button>
+      <button class="mtab" data-mt="view">View (<span id="fbcount">0</span>)</button>
+    </div>
+    <div id="fbsubmit" class="modalbody">
+      <select id="fbtype"><option value="bug">Bug / issue</option><option value="idea">Improvement idea</option></select>
+      <textarea id="fbtext" rows="4" placeholder="What happened, or what would make this better?"></textarea>
+      <button class="btn primary" id="fbsend">Send</button>
+    </div>
+    <div id="fbview" class="modalbody hidden"><div id="fblist"></div></div>
+  </div>
+</div>
 
 <main id="app">
   <div id="gate" class="gate hidden">

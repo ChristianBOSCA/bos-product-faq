@@ -20,6 +20,8 @@ const COLS = ["id","product_id","product_title","variant_sku","question","tags",
   "status","answer","source_link","attachment_url","created_by","created_at",
   "answered_by","answered_at","approved_by","last_verified_at"];
 const LASTCOL = "P"; // 16 columns
+const FB_TAB = "Feedback";
+const FB_COLS = ["id","type","text","by","created_at","status"];
 
 function json(statusCode, obj){ return { statusCode, headers:{ "Content-Type":"application/json" }, body: JSON.stringify(obj) }; }
 function text(statusCode, msg){ return { statusCode, headers:{ "Content-Type":"text/plain" }, body: msg }; }
@@ -38,6 +40,16 @@ function objToRow(o){ return COLS.map(c=>o[c]!=null?o[c]:""); }
 function nowISO(){ return new Date().toISOString(); }
 function genId(){ return "app_" + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 
+async function ensureTab(sheets, id, tab, cols){
+  const meta = await sheets.spreadsheets.get({ spreadsheetId:id, fields:"sheets.properties.title" });
+  const exists = (meta.data.sheets||[]).some(s=>s.properties.title===tab);
+  if(!exists){ await sheets.spreadsheets.batchUpdate({ spreadsheetId:id, requestBody:{ requests:[{ addSheet:{ properties:{ title:tab } } }] } }); }
+  const lastCol = String.fromCharCode(64 + cols.length);
+  const hr = await sheets.spreadsheets.values.get({ spreadsheetId:id, range:`${tab}!A1:${lastCol}1` });
+  if(!hr.data.values || !hr.data.values.length){
+    await sheets.spreadsheets.values.update({ spreadsheetId:id, range:`${tab}!A1:${lastCol}1`, valueInputOption:"RAW", requestBody:{ values:[cols] } });
+  }
+}
 async function ensureHeaders(sheets, id){
   const r = await sheets.spreadsheets.values.get({ spreadsheetId:id, range:`${TAB}!A1:${LASTCOL}1` });
   if(!r.data.values || !r.data.values.length){
@@ -106,6 +118,30 @@ exports.handler = async (event, context) => {
           created_by:actor, created_at:nowISO(), answered_by:"", answered_at:"", approved_by:"", last_verified_at:"" };
         await appendRow(sheets, id, obj);
         await audit(sheets, id, actor, "add", obj.id, obj.question);
+        return json(200, { ok:true });
+      }
+
+      if(action === "feedback_list"){
+        await ensureTab(sheets, id, FB_TAB, FB_COLS);
+        const r = await sheets.spreadsheets.values.get({ spreadsheetId:id, range:`${FB_TAB}!A2:F` });
+        const fb = (r.data.values||[]).map(row=>{ const o={}; FB_COLS.forEach((c,i)=>o[c]=row[i]!=null?row[i]:""); return o; });
+        return json(200, { feedback: fb });
+      }
+      if(action === "feedback_add"){
+        if(!body.text) return text(400, "Empty feedback.");
+        await ensureTab(sheets, id, FB_TAB, FB_COLS);
+        await sheets.spreadsheets.values.append({ spreadsheetId:id, range:`${FB_TAB}!A2:F`,
+          valueInputOption:"RAW", insertDataOption:"INSERT_ROWS",
+          requestBody:{ values:[[ "fb_"+Date.now().toString(36), body.type||"idea", String(body.text).slice(0,2000), actor, nowISO(), "open" ]] } });
+        return json(200, { ok:true });
+      }
+      if(action === "feedback_resolve"){
+        await ensureTab(sheets, id, FB_TAB, FB_COLS);
+        const r = await sheets.spreadsheets.values.get({ spreadsheetId:id, range:`${FB_TAB}!A2:F` });
+        const vals = r.data.values||[]; const i = vals.findIndex(row=>row[0]===body.id);
+        if(i<0) return text(404, "Feedback not found.");
+        const rowNum = i+2; const row = vals[i]; while(row.length<6) row.push(""); row[5] = body.status||"done";
+        await sheets.spreadsheets.values.update({ spreadsheetId:id, range:`${FB_TAB}!A${rowNum}:F${rowNum}`, valueInputOption:"RAW", requestBody:{ values:[row] } });
         return json(200, { ok:true });
       }
 

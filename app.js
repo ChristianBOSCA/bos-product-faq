@@ -28,8 +28,38 @@ function route(){
   const ok = !!USER_NAME;
   document.getElementById("gate").classList.toggle("hidden", ok);
   document.getElementById("main").classList.toggle("hidden", !ok);
+  document.getElementById("fbbtn").classList.toggle("hidden", !ok);
   paintUser();
   if(ok && CATALOG.length===0) boot();
+}
+/* ---------- feedback ---------- */
+function openFeedback(){ document.getElementById("fbmodal").classList.remove("hidden"); showFbTab("submit"); loadFeedback(); }
+function closeFeedback(){ document.getElementById("fbmodal").classList.add("hidden"); }
+function showFbTab(t){
+  document.getElementById("fbsubmit").classList.toggle("hidden", t!=="submit");
+  document.getElementById("fbview").classList.toggle("hidden", t!=="view");
+  document.querySelectorAll(".mtab").forEach(b=>b.classList.toggle("active", b.dataset.mt===t));
+}
+async function loadFeedback(){
+  const list = document.getElementById("fblist"); list.innerHTML = '<div class="spin">Loading…</div>';
+  try {
+    const r = await apiPost({ action:"feedback_list" });
+    const items = (r.feedback||[]).slice().reverse();
+    document.getElementById("fbcount").textContent = items.filter(x=>x.status!=="done").length;
+    list.innerHTML = items.length ? items.map(f=>`<div class="fbitem ${f.status==='done'?'done':''}">
+      <div class="fbtop"><span class="fbtype ${f.type==='bug'?'bug':'idea'}">${f.type==='bug'?'Bug':'Idea'}</span><span class="fbby">${esc(initials(f.by))} · ${esc((f.created_at||'').slice(0,10))}</span></div>
+      <div class="fbtext">${esc(f.text)}</div>
+      <div class="fbctrl"><button class="btn sm" data-fbdone="${esc(f.id)}" data-cur="${esc(f.status||'open')}">${f.status==='done'?'Reopen':'Mark done'}</button></div>
+    </div>`).join("") : '<div class="spin">No feedback yet — be the first.</div>';
+    list.querySelectorAll("[data-fbdone]").forEach(b=>b.onclick=async()=>{ try{ await apiPost({ action:"feedback_resolve", id:b.dataset.fbdone, status: b.dataset.cur==='done'?'open':'done' }); loadFeedback(); }catch(e){ toast("Failed: "+e.message,true); } });
+  } catch(e){ list.innerHTML = '<div class="spin">Could not load feedback.</div>'; }
+}
+async function sendFeedback(){
+  const t = document.getElementById("fbtext").value.trim(); if(!t){ toast("Add a description", true); return; }
+  const type = document.getElementById("fbtype").value;
+  const btn = document.getElementById("fbsend"); btn.disabled=true;
+  try { await apiPost({ action:"feedback_add", type, text:t }); document.getElementById("fbtext").value=""; toast("Thanks — sent"); showFbTab("view"); loadFeedback(); }
+  catch(e){ toast("Send failed: "+e.message, true); } finally { btn.disabled=false; }
 }
 function setName(){
   const v = document.getElementById("nameInput").value.trim();
@@ -104,6 +134,21 @@ function updateBulkBar(){
   if(a) a.disabled = _selRows.size===0;
   if(d) d.disabled = _selRows.size===0;
 }
+function bulkBarHTML(tab){
+  return `<div class="bulkbar">
+    <label class="check"><input type="checkbox" id="checkall"> Select all shown</label>
+    <span id="selcount">0 selected</span>
+    ${tab==="pending"?`<button class="btn sm primary" id="apprSel" disabled style="margin-left:auto">Approve selected</button>`:`<span style="margin-left:auto"></span>`}
+    <button class="btn sm danger" id="delSel" disabled>Delete selected</button>
+  </div>`;
+}
+function wireBulk(list){
+  updateBulkBar();
+  const chkAll = document.getElementById("checkall");
+  if(chkAll) chkAll.onclick = ()=>{ const on=chkAll.checked; list.forEach(r=>{ on?_selRows.add(r.id):_selRows.delete(r.id); }); document.querySelectorAll("[data-check]").forEach(c=>c.checked=on); updateBulkBar(); };
+  const aS=document.getElementById("apprSel"); if(aS) aS.onclick=()=>bulkAction("approve", list);
+  const dS=document.getElementById("delSel"); if(dS) dS.onclick=()=>bulkAction("delete", list);
+}
 function refresh(){ if(CURRENT){ renderTabs(); renderList(); } else renderDashboard(); }
 function renderDashboard(){
   const panel = document.getElementById("panel");
@@ -127,12 +172,7 @@ function renderDashboard(){
         <select id="ftype">${opt("all",GTYPE,"All types")}${types.map(t=>opt(t,GTYPE,t)).join("")}</select>
         <span class="qctl-count">${list.length} shown</span>
       </div>
-      <div class="bulkbar">
-        <label class="check"><input type="checkbox" id="checkall"> Select all shown</label>
-        <span id="selcount">0 selected</span>
-        ${GTAB==="pending"?`<button class="btn sm primary" id="apprSel" disabled style="margin-left:auto">Approve selected</button>`:`<span style="margin-left:auto"></span>`}
-        <button class="btn sm danger" id="delSel" disabled>Delete selected</button>
-      </div>
+      ${bulkBarHTML(GTAB)}
       <div id="glist"></div>
       <div class="dashhint">Tick the boxes to approve or delete in bulk — or open any item to act on it.</div>
     </div>`;
@@ -143,11 +183,7 @@ function renderDashboard(){
   const gl = document.getElementById("glist");
   if(!list.length){ gl.innerHTML = `<div class="spin">Nothing ${GTAB==="pending"?"pending approval":GTAB} right now.</div>`; }
   else { gl.innerHTML = list.map(r=>itemHTML(r,true,true)).join(""); wireItems(gl); }
-  updateBulkBar();
-  const chkAll = document.getElementById("checkall");
-  if(chkAll) chkAll.onclick = ()=>{ const on=chkAll.checked; list.forEach(r=>{ on?_selRows.add(r.id):_selRows.delete(r.id); }); gl.querySelectorAll("[data-check]").forEach(c=>c.checked=on); updateBulkBar(); };
-  const aS=document.getElementById("apprSel"); if(aS) aS.onclick=()=>bulkAction("approve", list);
-  const dS=document.getElementById("delSel"); if(dS) dS.onclick=()=>bulkAction("delete", list);
+  wireBulk(list);
 }
 async function bulkAction(kind, list){
   const shown = new Set(list.map(r=>r.id));
@@ -256,7 +292,7 @@ async function apiPost(body){
 
 /* ---------- product view ---------- */
 async function openProduct(id){
-  CURRENT = CATALOG.find(p=>p.id===id); TAB = "unanswered"; SELVARS = new Set();
+  CURRENT = CATALOG.find(p=>p.id===id); TAB = "unanswered"; SELVARS = new Set(); _selRows.clear();
   renderProductShell();
   loadDocs(CURRENT.handle);
   document.getElementById("qlist").innerHTML = '<div class="spin">Loading questions…</div>';
@@ -320,6 +356,7 @@ function renderProductShell(){
       <div class="applies"><span class="applylbl">Topics:</span><span id="topicchips"></span></div>
       <button class="btn primary" id="saveq">Add</button>
     </div>
+    <div id="pbulk"></div>
     <div id="qlist"></div>`;
   document.getElementById("addbtn").onclick = () => {
     const box = document.getElementById("addbox");
@@ -359,7 +396,7 @@ function renderTabs(){
   const c = counts();
   const defs = [["unanswered","Unanswered"],["pending","Pending approval"],["approved","Approved"]];
   document.getElementById("tabs").innerHTML = defs.map(([k,lab])=>`<button class="tab ${TAB===k?'active':''}" data-tab="${k}">${lab}<span class="ct">${c[k]}</span></button>`).join("");
-  document.getElementById("tabs").querySelectorAll(".tab").forEach(b=>b.onclick=()=>{ TAB=b.dataset.tab; renderTabs(); renderList(); });
+  document.getElementById("tabs").querySelectorAll(".tab").forEach(b=>b.onclick=()=>{ TAB=b.dataset.tab; _selRows.clear(); renderTabs(); renderList(); });
   document.getElementById("tablab").textContent = defs.find(d=>d[0]===TAB)[1];
 }
 function onNewQInput(){
@@ -477,9 +514,12 @@ function wireItems(ql){
 function renderList(){
   const list = visibleRows().filter(r=>r.status===TAB);
   const ql = document.getElementById("qlist");
+  const pb = document.getElementById("pbulk");
+  if(pb) pb.innerHTML = list.length ? bulkBarHTML(TAB) : "";
   if(!list.length){ ql.innerHTML = `<div class="spin">Nothing in ${TAB==="pending"?"pending approval":TAB}.</div>`; return; }
-  ql.innerHTML = list.map(r=>itemHTML(r,false)).join("");
+  ql.innerHTML = list.map(r=>itemHTML(r,false,true)).join("");
   wireItems(ql);
+  if(pb) wireBulk(list);
 }
 async function editItem(id,q,a){
   if(!q){ toast("Question can't be empty", true); return; }
@@ -515,6 +555,13 @@ async function mutate(body, okMsg){
   try { await apiPost(body); await apiGet(); refresh(); toast(okMsg); }
   catch(e){ toast("Action failed: "+e.message, true); }
 }
+
+/* ---------- feedback wiring ---------- */
+document.getElementById("fbbtn").onclick = openFeedback;
+document.getElementById("fbclose").onclick = closeFeedback;
+document.getElementById("fbmodal").addEventListener("click", e=>{ if(e.target.id==="fbmodal") closeFeedback(); });
+document.getElementById("fbsend").onclick = sendFeedback;
+document.querySelectorAll(".mtab").forEach(b=>b.onclick=()=>showFbTab(b.dataset.mt));
 
 /* ---------- start ---------- */
 route();

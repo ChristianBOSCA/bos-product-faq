@@ -36,7 +36,7 @@ function sheetsClient(){
 function rowToObj(row){ const o={}; COLS.forEach((c,i)=>o[c]=row[i]!=null?row[i]:""); return o; }
 function objToRow(o){ return COLS.map(c=>o[c]!=null?o[c]:""); }
 function nowISO(){ return new Date().toISOString(); }
-function genId(){ return "q_" + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function genId(){ return "app_" + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 
 async function ensureHeaders(sheets, id){
   const r = await sheets.spreadsheets.values.get({ spreadsheetId:id, range:`${TAB}!A1:${LASTCOL}1` });

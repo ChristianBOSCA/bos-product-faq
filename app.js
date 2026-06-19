@@ -91,6 +91,19 @@ function topicOf(r){
   return "other";
 }
 function typeOf(r){ const p = CATALOG.find(x=>x.id===r.product_id); return p ? (p.type||"") : ""; }
+function sourceOf(r){
+  const id = r.id || "";
+  if(id.startsWith("ck_") || /clickup/i.test(r.source_link||"")) return { label:"ClickUp · product_knowledge", link:r.source_link };
+  if(id.startsWith("app_")) return { label:"Added in tool" };
+  return { label:"Legacy FAQ import" };
+}
+let _selRows = new Set();
+function updateBulkBar(){
+  const c = document.getElementById("selcount"); if(c) c.textContent = `${_selRows.size} selected`;
+  const a = document.getElementById("apprSel"), d = document.getElementById("delSel");
+  if(a) a.disabled = _selRows.size===0;
+  if(d) d.disabled = _selRows.size===0;
+}
 function refresh(){ if(CURRENT){ renderTabs(); renderList(); } else renderDashboard(); }
 function renderDashboard(){
   const panel = document.getElementById("panel");
@@ -113,19 +126,41 @@ function renderDashboard(){
         <select id="ftopic">${opt("all",GTOPIC,"All topics")}${TOPICS.concat(["other"]).map(t=>opt(t,GTOPIC,t)).join("")}</select>
         <select id="ftype">${opt("all",GTYPE,"All types")}${types.map(t=>opt(t,GTYPE,t)).join("")}</select>
         <span class="qctl-count">${list.length} shown</span>
-        ${GTAB==="pending"&&list.length?`<button class="btn sm primary" id="bulkappr" style="margin-left:auto">Approve all ${list.length}</button>`:""}
+      </div>
+      <div class="bulkbar">
+        <label class="check"><input type="checkbox" id="checkall"> Select all shown</label>
+        <span id="selcount">0 selected</span>
+        ${GTAB==="pending"?`<button class="btn sm primary" id="apprSel" disabled style="margin-left:auto">Approve selected</button>`:`<span style="margin-left:auto"></span>`}
+        <button class="btn sm danger" id="delSel" disabled>Delete selected</button>
       </div>
       <div id="glist"></div>
-      <div class="dashhint">Answer or approve right here — or search above to open a specific product.</div>
+      <div class="dashhint">Tick the boxes to approve or delete in bulk — or open any item to act on it.</div>
     </div>`;
-  panel.querySelectorAll(".stat[data-go]").forEach(el=>el.onclick=()=>{ GTAB=el.dataset.go; EDITING=null; MOVING=null; renderDashboard(); });
+  panel.querySelectorAll(".stat[data-go]").forEach(el=>el.onclick=()=>{ GTAB=el.dataset.go; EDITING=null; MOVING=null; _selRows.clear(); renderDashboard(); });
   document.getElementById("fsort").onchange = e=>{ GSORT=e.target.value; renderDashboard(); };
   document.getElementById("ftopic").onchange = e=>{ GTOPIC=e.target.value; renderDashboard(); };
   document.getElementById("ftype").onchange = e=>{ GTYPE=e.target.value; renderDashboard(); };
   const gl = document.getElementById("glist");
   if(!list.length){ gl.innerHTML = `<div class="spin">Nothing ${GTAB==="pending"?"pending approval":GTAB} right now.</div>`; }
-  else { gl.innerHTML = list.map(r=>itemHTML(r,true)).join(""); wireItems(gl); }
-  const ba = document.getElementById("bulkappr"); if(ba) ba.onclick=()=>approveAll(list.map(r=>r.id));
+  else { gl.innerHTML = list.map(r=>itemHTML(r,true,true)).join(""); wireItems(gl); }
+  updateBulkBar();
+  const chkAll = document.getElementById("checkall");
+  if(chkAll) chkAll.onclick = ()=>{ const on=chkAll.checked; list.forEach(r=>{ on?_selRows.add(r.id):_selRows.delete(r.id); }); gl.querySelectorAll("[data-check]").forEach(c=>c.checked=on); updateBulkBar(); };
+  const aS=document.getElementById("apprSel"); if(aS) aS.onclick=()=>bulkAction("approve", list);
+  const dS=document.getElementById("delSel"); if(dS) dS.onclick=()=>bulkAction("delete", list);
+}
+async function bulkAction(kind, list){
+  const shown = new Set(list.map(r=>r.id));
+  const targets = [..._selRows].filter(id=>shown.has(id));
+  if(!targets.length) return;
+  if(!confirm(`${kind==="approve"?"Approve":"Delete"} ${targets.length} selected question(s)?${kind==="delete"?" This can't be undone.":""}`)) return;
+  try {
+    for(const id of targets){ await apiPost(kind==="approve" ? {action:"approve", id, lead_pin:LEAD_PIN} : {action:"delete", id}); }
+    _selRows.clear(); await apiGet(); refresh(); toast(`${kind==="approve"?"Approved":"Deleted"} ${targets.length}`);
+  } catch(e){
+    if(kind==="approve" && /PIN/i.test(e.message)){ const pin=prompt("Team Lead PIN to approve:"); if(pin){ LEAD_PIN=pin; localStorage.setItem("faq_leadpin",pin); return bulkAction(kind,list); } }
+    else toast("Bulk action failed: "+e.message, true);
+  }
 }
 function openItem(pid, tab){ openProduct(pid).then(()=>{ TAB = tab; renderTabs(); renderList(); }); }
 
@@ -221,7 +256,7 @@ async function apiPost(body){
 
 /* ---------- product view ---------- */
 async function openProduct(id){
-  CURRENT = CATALOG.find(p=>p.id===id); TAB = "unanswered"; SELVAR = null;
+  CURRENT = CATALOG.find(p=>p.id===id); TAB = "unanswered"; SELVARS = new Set();
   renderProductShell();
   loadDocs(CURRENT.handle);
   document.getElementById("qlist").innerHTML = '<div class="spin">Loading questions…</div>';
@@ -229,19 +264,37 @@ async function openProduct(id){
   renderTabs(); renderList();
 }
 async function loadDocs(handle){
-  const el = document.getElementById("docs");
-  if(!el || !handle) return;
-  try {
-    const res = await fetch(`/.netlify/functions/docs?handle=${encodeURIComponent(handle)}`);
-    if(!res.ok) return;
-    const d = await res.json();
-    let html = "";
-    if(d.dims) html += `<div class="docdims"><b>Box:</b> ${esc(d.dims)} <span class="hint">— full dimensions in the Box Contents PDF</span></div>`;
-    if(d.manuals && d.manuals.length){
-      html += `<div class="doclinks">` + d.manuals.map(m=>`<a class="link doclink" href="${esc(m.url)}" target="_blank" rel="noopener"><span class="pdftag">PDF</span> ${esc(m.label)}</a>`).join("") + `</div>`;
-    }
-    el.innerHTML = html;
-  } catch(e){ /* docs are best-effort */ }
+  if(!CURRENT) return;
+  CURRENT._docs = [];
+  if(handle){
+    try { const res = await fetch(`/.netlify/functions/docs?handle=${encodeURIComponent(handle)}`); if(res.ok){ const d = await res.json(); CURRENT._docs = d.manuals || []; } }
+    catch(e){ /* best-effort */ }
+  }
+  renderDocs();
+}
+function parseDims(label){
+  const m = (label||"").match(/(\d+(?:\.\d+)?\s*"\s*[xX×]\s*\d+(?:\.\d+)?\s*"(?:\s*[xX×]\s*\d+(?:\.\d+)?\s*")?|\d+(?:\.\d+)?\s*"\s*\|\s*\d+\s*cm)/);
+  return m ? m[1].replace(/\s+/g," ").trim() : "";
+}
+function renderDocs(){
+  const el = document.getElementById("docs"); if(!el) return;
+  const docs = (CURRENT && CURRENT._docs) || [];
+  if(!docs.length){ el.innerHTML=""; return; }
+  const manuals = docs.filter(d=>/manual|assembl/i.test(d.label) && !/box\s*content/i.test(d.label));
+  const boxes = docs.filter(d=>/box\s*content/i.test(d.label));
+  const sel = [...SELVARS];
+  let html = "";
+  if(sel.length===1 && boxes.length){
+    const v = CURRENT.variants.find(x=>x.sku===sel[0]);
+    let best = boxes[0], bs = -1;
+    if(v){ const vt = tok(v.title); for(const d of boxes){ const lt=d.label.toLowerCase(); const s=vt.filter(w=>lt.includes(w)).length; if(s>bs){ bs=s; best=d; } } }
+    const dims = parseDims(best.label);
+    html += `<div class="docdims"><b>Box${v?` · ${esc(v.sku)}`:""}:</b> ${dims?esc(dims):"see PDF"} — <a class="link" href="${esc(best.url)}" target="_blank" rel="noopener">box contents PDF ↗</a></div>`;
+  } else if(boxes.length){
+    html += `<div class="docdims"><span class="hint">Select a single variant above to see its box dimensions.</span></div>`;
+  }
+  if(manuals.length) html += `<div class="doclinks">` + manuals.map(m=>`<a class="link doclink" href="${esc(m.url)}" target="_blank" rel="noopener"><span class="pdftag">PDF</span> ${esc(m.label)}</a>`).join("") + `</div>`;
+  el.innerHTML = html;
 }
 function rowsForProduct(){ return ROWS.filter(r=>r.product_id===CURRENT.id); }
 function counts(){ const l=visibleRows(); return { unanswered:l.filter(r=>r.status==="unanswered").length, pending:l.filter(r=>r.status==="pending").length, approved:l.filter(r=>r.status==="approved").length }; }
@@ -251,10 +304,10 @@ function renderProductShell(){
   document.getElementById("panel").innerHTML = `
     <div class="card">
       <div class="prodhead">${p.handle ? `<a class="name pdplink" href="https://bellsofsteel.com/products/${esc(p.handle)}" target="_blank" rel="noopener">${esc(p.title)} <span class="ext" aria-hidden="true">&#8599;</span></a>` : `<span class="name">${esc(p.title)}</span>`}<span class="type">${esc(p.type)}</span><span class="src">${esc(p.src)}</span></div>
-      <div class="varlabel">Variants / SKUs <span class="varhint">— click a SKU to see only its questions</span></div>
+      <div class="varlabel">Variants / SKUs <span class="varhint">— click to filter; pick more than one for multi-variant questions</span></div>
       <div class="varlist">
         <div class="variant varall selected" data-sku=""><span class="sku skuall">All variants</span><span>show every question for this product</span></div>
-        ${p.variants.map(v=>`<div class="variant" data-sku="${esc(v.sku)}"><span class="sku">${esc(v.sku)}</span><span>${esc(v.title)}</span>${v.weight_lb?`<span class="wt">${v.weight_lb} lb</span>`:""}${/attach|band|strap|\+/i.test(v.title)?'<span class="attflag">attachment</span>':''}</div>`).join("")}
+        ${p.variants.map(v=>`<div class="variant" data-sku="${esc(v.sku)}"><span class="sku">${esc(v.sku)}</span><span>${esc(v.title)}</span>${/attach|band|strap|\+/i.test(v.title)?'<span class="attflag">attachment</span>':''}</div>`).join("")}
       </div>
       <div id="docs" class="docs"></div>
     </div>
@@ -263,7 +316,7 @@ function renderProductShell(){
     <div class="addbox hidden" id="addbox">
       <input id="newq" type="text" placeholder="Type the question…" />
       <div class="flag dup hidden" id="dup"></div>
-      <div class="applies"><span class="applylbl">Applies to:</span><span id="applychips"></span></div>
+      <div class="applies"><span class="applylbl">Applies to:</span> <span id="scopenote" class="scopenote"></span> <span class="varhint">— change by selecting variants above</span></div>
       <div class="applies"><span class="applylbl">Topics:</span><span id="topicchips"></span></div>
       <button class="btn primary" id="saveq">Add</button>
     </div>
@@ -272,30 +325,22 @@ function renderProductShell(){
     const box = document.getElementById("addbox");
     const opening = box.classList.contains("hidden");
     box.classList.toggle("hidden");
-    if(opening){ _selSkus = new Set(SELVAR?[SELVAR]:[]); _chipsTouched=false; _selTopics = new Set(); _topicsTouched=false; renderApplies(); renderTopics(); document.getElementById("newq").focus(); }
+    if(opening){ _selTopics = new Set(); _topicsTouched=false; renderTopics(); renderScopeNote(); document.getElementById("newq").focus(); }
   };
   document.getElementById("newq").addEventListener("input", onNewQInput);
   document.getElementById("saveq").onclick = saveQuestion;
   document.querySelectorAll(".varlist .variant").forEach(el=>el.onclick=()=>selectVariant(el.dataset.sku||""));
 }
-let SELVAR = null;   // selected variant SKU for viewing, or null = all
+let SELVARS = new Set();   // selected variant SKUs: viewing filter + scope for new questions; empty = all / whole product
 function skuListOf(r){ return (r.variant_sku||"").split(",").map(s=>s.trim()).filter(Boolean); }
 function visibleRows(){
   const l = rowsForProduct();
-  if(!SELVAR) return l;
-  return l.filter(r => { const cs = skuListOf(r); return cs.length ? cs.includes(SELVAR) : true; });  // sku-specific (any of) + whole-product
+  if(!SELVARS.size) return l;
+  return l.filter(r => { const cs = skuListOf(r); return cs.length ? cs.some(x=>SELVARS.has(x)) : true; });  // any selected sku + whole-product
 }
-function renderApplies(){
-  const box = document.getElementById("applychips"); if(!box || !CURRENT) return;
-  const chips = [`<button class="achip ${_selSkus.size===0?'on':''}" data-sku="">Whole product</button>`]
-    .concat(CURRENT.variants.map(v=>`<button class="achip ${_selSkus.has(v.sku)?'on':''}" data-sku="${esc(v.sku)}" title="${esc(v.title)}">${esc(v.sku)}</button>`));
-  box.innerHTML = chips.join("");
-  box.querySelectorAll(".achip").forEach(b=>b.onclick=()=>{
-    _chipsTouched = true;
-    const s = b.dataset.sku;
-    if(!s) _selSkus.clear(); else { _selSkus.has(s) ? _selSkus.delete(s) : _selSkus.add(s); }
-    renderApplies(); onNewQInput();
-  });
+function renderScopeNote(){
+  const el = document.getElementById("scopenote"); if(!el) return;
+  el.innerHTML = SELVARS.size ? [...SELVARS].map(s=>`<span class="sku">${esc(s)}</span>`).join(" ") : `<span class="stamp" style="margin-left:0">whole product</span>`;
 }
 function renderTopics(){
   const box = document.getElementById("topicchips"); if(!box) return;
@@ -303,10 +348,12 @@ function renderTopics(){
   box.querySelectorAll(".achip").forEach(b=>b.onclick=()=>{ const t=b.dataset.topic; _selTopics.has(t)?_selTopics.delete(t):_selTopics.add(t); _topicsTouched=true; renderTopics(); });
 }
 function selectVariant(sku){
-  SELVAR = sku || null;
-  document.querySelectorAll(".varlist .variant").forEach(el =>
-    el.classList.toggle("selected", (el.dataset.sku||"") === (SELVAR||"")));
-  renderTabs(); renderList();
+  if(!sku){ SELVARS.clear(); } else { SELVARS.has(sku) ? SELVARS.delete(sku) : SELVARS.add(sku); }
+  document.querySelectorAll(".varlist .variant").forEach(el=>{
+    const s = el.dataset.sku||"";
+    el.classList.toggle("selected", s ? SELVARS.has(s) : SELVARS.size===0);
+  });
+  renderTabs(); renderList(); renderScopeNote(); renderDocs();
 }
 function renderTabs(){
   const c = counts();
@@ -315,21 +362,13 @@ function renderTabs(){
   document.getElementById("tabs").querySelectorAll(".tab").forEach(b=>b.onclick=()=>{ TAB=b.dataset.tab; renderTabs(); renderList(); });
   document.getElementById("tablab").textContent = defs.find(d=>d[0]===TAB)[1];
 }
-let _selSkus = new Set();      // SKUs the new question applies to ([] = whole product)
-let _chipsTouched = false;
 function onNewQInput(){
   const v = document.getElementById("newq").value;
-  // auto-suggest a SKU scope as you type, unless the user has set chips manually
-  if(!_chipsTouched){
-    const hit = routeVariant(CURRENT, v);
-    if(hit){ _selSkus = new Set([hit.sku]); renderApplies(); }
-    else if(!SELVAR && _selSkus.size){ _selSkus.clear(); renderApplies(); }
-  }
   if(!_topicsTouched){ const t = topicOf({question:v, tags:""}); _selTopics = new Set(t!=="other"?[t]:[]); renderTopics(); }
   // duplicate detection — only flag questions that share a SKU (or are whole-product)
   const dup = document.getElementById("dup");
   const words = v.toLowerCase().split(/\s+/).filter(w=>w.length>3);
-  const tgt = [..._selSkus];
+  const tgt = [...SELVARS];
   const cands = rowsForProduct().filter(r=>{
     const iw = r.question.toLowerCase();
     if(words.filter(w=>iw.includes(w)).length < 2) return false;
@@ -348,7 +387,7 @@ async function saveQuestion(){
   const v = document.getElementById("newq").value.trim(); if(!v) return;
   const btn = document.getElementById("saveq"); btn.disabled = true;
   try {
-    const vsku = [..._selSkus].join(",");   // "" = whole product, "A,B" = applies to A and B
+    const vsku = [...SELVARS].join(",");   // "" = whole product, "A,B" = applies to A and B
     await apiPost({ action:"add", product_id:CURRENT.id, product_title:CURRENT.title, variant_sku:vsku, question:v, tags:[..._selTopics].join(",") });
     document.getElementById("newq").value=""; document.getElementById("addbox").classList.add("hidden");
     await apiGet(); TAB="unanswered"; renderTabs(); renderList(); toast("Question logged");
@@ -368,7 +407,7 @@ function staleBadge(r){
   return "";
 }
 function prodChip(r){ return `<a class="prodchip" data-open="${esc(r.product_id)}">${esc(r.product_title||r.product_id)}</a>`; }
-function itemHTML(r, showProduct){
+function itemHTML(r, showProduct, selectable){
   if(EDITING===r.id){
     return `<div class="qitem editing">
       ${showProduct?`<div class="prodline">in ${prodChip(r)}</div>`:""}
@@ -400,11 +439,12 @@ function itemHTML(r, showProduct){
   ctrls += `<button class="btn sm" data-edit="${r.id}">Edit</button>`;
   ctrls += `<button class="btn sm" data-move="${r.id}">Move</button>`;
   if(r.status!=="unanswered") ctrls += `<button class="btn sm" data-copy="${r.id}">Copy</button>`;
+  const src = sourceOf(r);
   return `<div class="qitem ${r.status==='pending'?'pending':''}" data-qid="${esc(r.id)}">
-    <div class="qtop"><span class="qtext">${esc(r.question)}</span>${skuChip(r.variant_sku)}</div>
+    <div class="qtop">${selectable?`<input type="checkbox" class="rowchk" data-check="${esc(r.id)}" ${_selRows.has(r.id)?"checked":""}>`:""}<span class="qtext">${esc(r.question)}</span>${skuChip(r.variant_sku)}</div>
     ${showProduct?`<div class="prodline">in ${prodChip(r)}</div>`:""}
     ${ans}
-    <div class="qmeta">${topicOf(r)!=="other"?`<span class="topic">${esc(topicOf(r))}</span>`:""}${staleBadge(r)}<span class="stamp">${r.answered_by?esc(initials(r.answered_by))+" · ":""}${esc((r.last_verified_at||r.answered_at||r.created_at||"").slice(0,10))}${r.last_verified_at?" · last verified":""}</span></div>
+    <div class="qmeta">${topicOf(r)!=="other"?`<span class="topic">${esc(topicOf(r))}</span>`:""}${src.link?`<a class="src2" href="${esc(src.link)}" target="_blank" rel="noopener">${esc(src.label)} ↗</a>`:`<span class="src2">${esc(src.label)}</span>`}${staleBadge(r)}<span class="stamp">${r.answered_by?esc(initials(r.answered_by))+" · ":""}${esc((r.last_verified_at||r.answered_at||r.created_at||"").slice(0,10))}${r.last_verified_at?" · last verified":""}</span></div>
     <div class="qctrls">${ctrls}<button class="btn sm danger" data-del="${r.id}" style="margin-left:auto">Delete</button></div>
   </div>`;
 }
@@ -432,6 +472,7 @@ function wireItems(ql){
   ql.querySelectorAll("[data-save]").forEach(b=>b.onclick=()=>{ const id=b.dataset.save; const q=ql.querySelector(`[data-eq="${id}"]`).value.trim(); const a=ql.querySelector(`[data-ea="${id}"]`).value.trim(); editItem(id,q,a); });
   ql.querySelectorAll("[data-copy]").forEach(b=>b.onclick=()=>{ const r=ROWS.find(x=>x.id===b.dataset.copy); if(r) navigator.clipboard.writeText(r.answer||"").then(()=>toast("Answer copied")).catch(()=>toast("Copy failed",true)); });
   ql.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ if(confirm("Delete this question?")) mutate({action:"delete", id:b.dataset.del}, "Deleted"); });
+  ql.querySelectorAll("[data-check]").forEach(c=>c.onchange=()=>{ c.checked ? _selRows.add(c.dataset.check) : _selRows.delete(c.dataset.check); updateBulkBar(); });
 }
 function renderList(){
   const list = visibleRows().filter(r=>r.status===TAB);

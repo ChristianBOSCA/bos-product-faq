@@ -154,6 +154,13 @@ main{max-width:860px;margin:0 auto;padding:24px 20px 80px}
 .qctl select{font-size:13px;padding:5px 8px;border:1px solid var(--line2);border-radius:8px;background:#fff}
 .qctl-count{font-size:12px;color:var(--faint)}
 .topic{font-size:11px;background:var(--purple-bg);color:var(--purple-fg);padding:1px 7px;border-radius:6px;text-transform:capitalize}
+.bulkbar{display:flex;align-items:center;gap:10px;margin:0 0 12px;font-size:13px;flex-wrap:wrap}
+.bulkbar #selcount{color:var(--muted)}
+.rowchk{margin-right:4px}
+.src2{font-size:11px;color:var(--faint)}
+a.src2{text-decoration:none;border-bottom:1px dotted var(--faint)}
+a.src2:hover{color:var(--orange);border-color:var(--orange)}
+.scopenote .sku{margin-right:3px}
 .prodline{font-size:12px;color:var(--faint);margin-top:3px}
 .prodchip{color:var(--text);border-bottom:1px solid var(--orange);cursor:pointer}
 .prodchip:hover{color:var(--orange)}

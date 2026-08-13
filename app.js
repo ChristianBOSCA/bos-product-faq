@@ -590,18 +590,51 @@ async function generateAnswer(btn){
   const notes = field.value.trim();
   if(!notes){ toast("Type the facts first, then Generate", true); field.focus(); return; }
   const r = ROWS.find(x=>x.id===id) || {};
+  const qField = document.querySelector(`[data-eq="${id}"]`);
+  const curQ = qField ? qField.value.trim() : (r.question||"");
   const old = btn.textContent; btn.disabled = true; btn.textContent = "✨ Working…";
   try {
     const res = await fetch("/.netlify/functions/generate", {
       method:"POST", headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ question:r.question||"", notes, product_title:r.product_title||"", skus:r.variant_sku||"", mode: which==="ea"?"tighten":"cs" })
+      body: JSON.stringify({ question:curQ, notes, product_title:r.product_title||"", skus:r.variant_sku||"", mode: which==="ea"?"polish":"cs" })
     });
-    if(!res.ok){ toast(await res.text(), true); return; }
-    const data = await res.json();
-    field.value = data.text; field.focus();
+    if(!res.ok){
+      const raw = (await res.text()).trim();
+      const looksHtml = /^<|<!doctype/i.test(raw);
+      let msg;
+      if(res.status === 404) msg = "AI isn't deployed yet — add netlify/functions/generate.js";
+      else if(looksHtml || raw.length > 200) msg = `AI unavailable (error ${res.status})`;
+      else msg = raw || `AI error ${res.status}`;
+      toast(msg, true); return;
+    }
+    const data = await res.json().catch(()=>null);
+    if(!data || (!data.text && !data.answer)){ toast("AI returned an unexpected response", true); return; }
+    field.value = data.answer || data.text; field.focus();
+    const newQ = (data.question||"").trim();
+    const norm = s => s.toLowerCase().replace(/\s+/g," ").replace(/[^a-z0-9 ?]/g,"").trim();
+    if(which==="ea" && qField && newQ && norm(newQ) !== norm(curQ)) showQuestionProposal(id, curQ, newQ);
     toast("Drafted — review, then save");
   } catch(e){ toast("Generate failed: "+e.message, true); }
   finally { btn.disabled = false; btn.textContent = old; }
+}
+function showQuestionProposal(id, oldQ, newQ){
+  const box = document.querySelector(`[data-prop="${id}"]`); if(!box) return;
+  box.innerHTML = `
+    <div class="propcard">
+      <div class="prophead">Should we update the question too?</div>
+      <div class="propold"><del>${esc(oldQ)}</del></div>
+      <div class="propnew">${esc(newQ)}</div>
+      <div class="propctrls">
+        <button class="btn sm primary" data-pyes="${esc(id)}">Use new question</button>
+        <button class="btn sm" data-pno="1">Keep original</button>
+      </div>
+    </div>`;
+  box.querySelector("[data-pyes]").onclick = ()=>{
+    const qf = document.querySelector(`[data-eq="${id}"]`);
+    if(qf) qf.value = newQ;
+    box.innerHTML = `<div class="propdone">Question updated — remember to Save.</div>`;
+  };
+  box.querySelector("[data-pno]").onclick = ()=>{ box.innerHTML = ""; };
 }
 /* ---------- mutations (lock-aware, conflict-safe) ---------- */
 async function onConflict(e){ toast(e.message, true); EDITING=null; MOVING=null; await softRefresh(); }

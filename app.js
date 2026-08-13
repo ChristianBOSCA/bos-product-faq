@@ -121,9 +121,16 @@ function topicOf(r){
   return "other";
 }
 function typeOf(r){ const p = CATALOG.find(x=>x.id===r.product_id); return p ? (p.type||"") : ""; }
+const CK_WS = "8634432", CK_CH = "87g20-350617";
 function sourceOf(r){
   const id = r.id || "";
-  if(id.startsWith("ck_") || /clickup/i.test(r.source_link||"")) return { label:"ClickUp · product_knowledge", link:r.source_link };
+  if(id.startsWith("ck_")){
+    // the ClickUp message id is embedded in the row id — build a deep link to that message
+    const msg = id.slice(3);
+    const link = /^\d+$/.test(msg) ? `https://app.clickup.com/${CK_WS}/chat/r/${CK_CH}/t/${msg}` : (r.source_link||"");
+    return { label:"ClickUp · product_knowledge", link };
+  }
+  if(/clickup/i.test(r.source_link||"")) return { label:"ClickUp · product_knowledge", link:r.source_link };
   if(id.startsWith("app_")) return { label:"Added in tool" };
   return { label:"Legacy FAQ import" };
 }

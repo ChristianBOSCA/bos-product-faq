@@ -101,7 +101,7 @@ function checkDeepLink(){
   return true;
 }
 window.addEventListener("hashchange", ()=>{ if(USER_NAME) checkDeepLink(); });
-let GTAB = "unanswered", GSORT = "oldest", GTOPIC = "all", GTYPE = "all";
+let GTAB = "unanswered", GSORT = "oldest", GTOPIC = "all", GTYPE = "all", GVIS = "all";
 let _selTopics = new Set(), _topicsTouched = false;
 const TOPICS = ["shipping","assembly","compatibility","specs","sizing","warranty","maintenance"];
 const TOPIC_KW = {
@@ -130,24 +130,28 @@ function sourceOf(r){
 let _selRows = new Set();
 function updateBulkBar(){
   const c = document.getElementById("selcount"); if(c) c.textContent = `${_selRows.size} selected`;
-  const a = document.getElementById("apprSel"), d = document.getElementById("delSel");
-  if(a) a.disabled = _selRows.size===0;
-  if(d) d.disabled = _selRows.size===0;
+  const none = _selRows.size===0;
+  ["apprSel","delSel","visCust","visInt"].forEach(k=>{ const el=document.getElementById(k); if(el) el.disabled = none; });
 }
 function bulkBarHTML(tab){
   return `<div class="bulkbar">
     <label class="check"><input type="checkbox" id="checkall"> Select all shown</label>
     <span id="selcount">0 selected</span>
-    ${tab==="pending"?`<button class="btn sm primary" id="apprSel" disabled style="margin-left:auto">Approve selected</button>`:`<span style="margin-left:auto"></span>`}
+    ${tab==="pending"?`<button class="btn sm primary" id="apprSel" disabled style="margin-left:auto">✓ Approve selected</button>`:`<span style="margin-left:auto"></span>`}
+    <button class="btn sm cust" id="visCust" disabled title="Clear for customer-facing use">Mark customer-safe</button>
+    <button class="btn sm" id="visInt" disabled title="Keep internal only">Internal only</button>
     <button class="btn sm danger" id="delSel" disabled>Delete selected</button>
-  </div>`;
+  </div>
+  ${tab==="pending"?`<div class="approvehint">Two ways to approve: tick the boxes and use <b>✓ Approve selected</b> for a batch, or hit <b>✓ Approve</b> on any single question.</div>`:""}`;
 }
 function wireBulk(list){
   updateBulkBar();
   const chkAll = document.getElementById("checkall");
-  if(chkAll) chkAll.onclick = ()=>{ const on=chkAll.checked; list.forEach(r=>{ on?_selRows.add(r.id):_selRows.delete(r.id); }); document.querySelectorAll("[data-check]").forEach(c=>c.checked=on); updateBulkBar(); };
+  if(chkAll) chkAll.onclick = ()=>{ const on=chkAll.checked; list.forEach(r=>{ if(lockedOut(r)) return; on?_selRows.add(r.id):_selRows.delete(r.id); }); document.querySelectorAll("[data-check]").forEach(c=>c.checked=on); updateBulkBar(); };
   const aS=document.getElementById("apprSel"); if(aS) aS.onclick=()=>bulkAction("approve", list);
   const dS=document.getElementById("delSel"); if(dS) dS.onclick=()=>bulkAction("delete", list);
+  const vC=document.getElementById("visCust"); if(vC) vC.onclick=()=>bulkVisibility("customer", list);
+  const vI=document.getElementById("visInt"); if(vI) vI.onclick=()=>bulkVisibility("internal", list);
 }
 function refresh(){ if(CURRENT){ renderTabs(); renderList(); } else renderDashboard(); }
 function renderDashboard(){
@@ -158,6 +162,7 @@ function renderDashboard(){
   let list = ROWS.filter(r=>r.status===GTAB);
   if(GTOPIC!=="all") list = list.filter(r=>topicOf(r)===GTOPIC);
   if(GTYPE!=="all")  list = list.filter(r=>typeOf(r)===GTYPE);
+  if(GVIS!=="all")   list = list.filter(r=>(r.visibility||"unset")===GVIS);
   list = list.slice().sort((a,b)=>{ const da=(a.created_at||a.answered_at||""), db=(b.created_at||b.answered_at||""); return GSORT==="oldest" ? da.localeCompare(db) : db.localeCompare(da); });
   const types = [...new Set(ROWS.map(typeOf).filter(Boolean))].sort();
   const opt = (val,cur,lab)=>`<option value="${esc(val)}" ${val===cur?"selected":""}>${esc(lab)}</option>`;
@@ -170,6 +175,7 @@ function renderDashboard(){
         <select id="fsort">${opt("oldest",GSORT,"Oldest first")}${opt("newest",GSORT,"Newest first")}</select>
         <select id="ftopic">${opt("all",GTOPIC,"All topics")}${TOPICS.concat(["other"]).map(t=>opt(t,GTOPIC,t)).join("")}</select>
         <select id="ftype">${opt("all",GTYPE,"All types")}${types.map(t=>opt(t,GTYPE,t)).join("")}</select>
+        <select id="fvis">${opt("all",GVIS,"Any visibility")}${opt("customer",GVIS,"✅ Customer-approved")}${opt("internal",GVIS,"🔒 Internal only")}${opt("unset",GVIS,"◻ Not set")}</select>
         <span class="qctl-count">${list.length} shown</span>
       </div>
       ${bulkBarHTML(GTAB)}
@@ -180,6 +186,7 @@ function renderDashboard(){
   document.getElementById("fsort").onchange = e=>{ GSORT=e.target.value; renderDashboard(); };
   document.getElementById("ftopic").onchange = e=>{ GTOPIC=e.target.value; renderDashboard(); };
   document.getElementById("ftype").onchange = e=>{ GTYPE=e.target.value; renderDashboard(); };
+  document.getElementById("fvis").onchange = e=>{ GVIS=e.target.value; renderDashboard(); };
   const gl = document.getElementById("glist");
   if(!list.length){ gl.innerHTML = `<div class="spin">Nothing ${GTAB==="pending"?"pending approval":GTAB} right now.</div>`; }
   else { gl.innerHTML = list.map(r=>itemHTML(r,true,true)).join(""); wireItems(gl); }
@@ -187,12 +194,18 @@ function renderDashboard(){
 }
 async function bulkAction(kind, list){
   const shown = new Set(list.map(r=>r.id));
-  const targets = [..._selRows].filter(id=>shown.has(id));
-  if(!targets.length) return;
+  const targets = [..._selRows].filter(id=>shown.has(id) && !lockedOut(ROWS.find(r=>r.id===id)||{}));
+  if(!targets.length){ toast("Nothing selected (locked rows are skipped)", true); return; }
   if(!confirm(`${kind==="approve"?"Approve":"Delete"} ${targets.length} selected question(s)?${kind==="delete"?" This can't be undone.":""}`)) return;
+  let done=0, skipped=0;
   try {
-    for(const id of targets){ await apiPost(kind==="approve" ? {action:"approve", id, lead_pin:LEAD_PIN} : {action:"delete", id}); }
-    _selRows.clear(); await apiGet(); refresh(); toast(`${kind==="approve"?"Approved":"Deleted"} ${targets.length}`);
+    for(const id of targets){
+      const base = baseStamp(id);
+      try { await apiPost(kind==="approve" ? {action:"approve", id, lead_pin:LEAD_PIN, base_updated_at:base} : {action:"delete", id, base_updated_at:base}); done++; }
+      catch(err){ if(err.conflict){ skipped++; } else throw err; }
+    }
+    _selRows.clear(); await apiGet(); refresh();
+    toast(`${kind==="approve"?"Approved":"Deleted"} ${done}${skipped?` · ${skipped} skipped (in use)`:""}`);
   } catch(e){
     if(kind==="approve" && /PIN/i.test(e.message)){ const pin=prompt("Team Lead PIN to approve:"); if(pin){ LEAD_PIN=pin; localStorage.setItem("faq_leadpin",pin); return bulkAction(kind,list); } }
     else toast("Bulk action failed: "+e.message, true);
@@ -286,9 +299,32 @@ async function apiGet(){
 }
 async function apiPost(body){
   const res = await fetch(API, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ actor: USER_NAME, ...body }) });
-  if(!res.ok){ throw new Error((await res.text()) || res.status); }
+  if(!res.ok){
+    const raw = await res.text();
+    let msg = raw || String(res.status), extra = {};
+    try { const j = JSON.parse(raw); if(j && j.error){ msg = j.error; extra = j; } } catch(e){}
+    const err = new Error(msg); err.status = res.status; err.conflict = (res.status===409); Object.assign(err, extra);
+    throw err;
+  }
   return res.json();
 }
+/* ---------- locking helpers ---------- */
+const LOCK_TTL_MS = 10*60*1000;
+function lockHolder(r){
+  const by = (r.locked_by||"").trim(); if(!by) return null;
+  const t = Date.parse(r.locked_at||""); if(isNaN(t) || (Date.now()-t) > LOCK_TTL_MS) return null;
+  return by;
+}
+function lockedOut(r){ const by = lockHolder(r); return (by && by !== USER_NAME) ? by : null; }
+async function acquireLock(id){
+  try { await apiPost({ action:"lock", id }); return true; }
+  catch(e){ toast(e.conflict ? e.message : ("Could not start editing: "+e.message), true); await softRefresh(); return false; }
+}
+function releaseLock(id){ apiPost({ action:"unlock", id }).catch(()=>{}); }
+function baseStamp(id){ const r = ROWS.find(x=>x.id===id); return r ? (r.updated_at||"") : ""; }
+async function softRefresh(){ try { await apiGet(); refresh(); } catch(e){} }
+/* auto-refresh so everyone sees each other's locks and changes */
+let _poll = setInterval(()=>{ if(USER_NAME && !EDITING && !MOVING && document.visibilityState==="visible") softRefresh(); }, 25000);
 
 /* ---------- product view ---------- */
 async function openProduct(id){
@@ -452,7 +488,7 @@ function itemHTML(r, showProduct, selectable){
       <input class="ed-q" data-eq="${r.id}" value="${esc(r.question)}" />
       <label class="edlbl">Answer</label>
       <textarea class="ed-a" data-ea="${r.id}" rows="4" placeholder="Answer…">${esc(r.answer)}</textarea>
-      <div class="qctrls"><button class="btn sm primary" data-save="${r.id}">Save</button><button class="btn sm" data-cancel="1">Cancel</button>${r.status==="approved"?'<span class="hint">editing the answer sends it back for re-approval</span>':''}</div>
+      <div class="qctrls"><button class="btn sm primary" data-save="${r.id}">Save</button><button class="btn sm" data-cancel="${r.id}">Cancel</button><button class="btn sm ai" data-gen="${r.id}" data-tgt="ea" title="Rewrite into a customer-ready answer">✨ Polish</button>${r.status==="approved"?'<span class="hint">editing the answer sends it back for re-approval</span>':''}</div>
     </div>`;
   }
   if(MOVING===r.id){
@@ -461,39 +497,64 @@ function itemHTML(r, showProduct, selectable){
       <label class="edlbl">Move to which product?</label>
       <input class="mv-q" data-mvq="${r.id}" placeholder="Search a product…" autocomplete="off" />
       <div class="mv-results" data-mvr="${r.id}"></div>
-      <div class="qctrls"><button class="btn sm" data-mvcancel="1">Cancel</button><span class="hint">currently under: ${esc(r.product_title||r.product_id)}</span></div>
+      <div class="qctrls"><button class="btn sm" data-mvcancel="${r.id}">Cancel</button><span class="hint">currently under: ${esc(r.product_title||r.product_id)}</span></div>
     </div>`;
   }
+  const heldBy = lockedOut(r);
+  const vis = (r.visibility||"");
+  const visChip = vis==="customer"
+    ? `<span class="vis cust" title="Cleared for customer-facing use by ${esc(r.visibility_by||"")}">✅ Customer-approved</span>`
+    : vis==="internal"
+      ? `<span class="vis int" title="Marked internal-only by ${esc(r.visibility_by||"")}">🔒 Internal only</span>`
+      : `<span class="vis unset" title="Not reviewed — downstream projects treat this as internal">◻ Visibility not set</span>`;
   let ans;
   if(r.status==="unanswered"){
-    ans = `<div class="ansrow"><input data-ans="${r.id}" placeholder="Know this? Answer it…" />
-      <div class="srcrow"><input data-src="${r.id}" placeholder="Source link (ClickUp, Drive…) — optional" /></div></div>`;
+    ans = `<div class="ansrow"><input data-ans="${r.id}" placeholder="Know this? Answer it…" ${heldBy?"disabled":""} />
+      <div class="srcrow"><input data-src="${r.id}" placeholder="Source link (ClickUp, Drive…) — optional" ${heldBy?"disabled":""} /><button class="btn sm ai" data-gen="${r.id}" data-tgt="ans" title="Turn your notes into a customer-ready answer" ${heldBy?"disabled":""}>✨ Generate</button></div></div>`;
   } else {
     ans = `<div class="ans">${fmt(r.answer)}</div>${r.source_link?`<div style="margin-top:4px"><a class="link" href="${esc(r.source_link)}" target="_blank" rel="noopener">source ↗</a></div>`:""}`;
   }
   let ctrls = "";
-  if(r.status==="pending") ctrls += `<label class="check"><input type="checkbox" data-appr="${r.id}"> Approve</label>`;
-  ctrls += `<button class="btn sm" data-edit="${r.id}">Edit</button>`;
-  ctrls += `<button class="btn sm" data-move="${r.id}">Move</button>`;
-  if(r.status!=="unanswered") ctrls += `<button class="btn sm" data-copy="${r.id}">Copy</button>`;
+  if(heldBy){
+    ctrls = `<span class="lockbadge">🔒 ${esc(initials(heldBy))} is editing — locked</span>`;
+  } else {
+    if(r.status==="pending") ctrls += `<button class="btn sm primary" data-appr="${r.id}" title="Verify this answer (moves it to Approved)">✓ Approve</button>`;
+    if(r.status==="approved" && vis!=="customer") ctrls += `<button class="btn sm cust" data-vis="${r.id}" data-set="customer" title="Clear this for customer-facing use by other projects">Mark customer-safe</button>`;
+    if(vis!=="internal") ctrls += `<button class="btn sm" data-vis="${r.id}" data-set="internal" title="Keep this internal — never used customer-facing">Internal only</button>`;
+    if(vis) ctrls += `<button class="btn sm" data-vis="${r.id}" data-set="" title="Clear the visibility tag">Unset</button>`;
+    ctrls += `<button class="btn sm" data-edit="${r.id}">Edit</button>`;
+    ctrls += `<button class="btn sm" data-move="${r.id}">Move</button>`;
+    if(r.status!=="unanswered") ctrls += `<button class="btn sm" data-copy="${r.id}">Copy</button>`;
+    ctrls += `<button class="btn sm danger" data-del="${r.id}" style="margin-left:auto">Delete</button>`;
+  }
   const src = sourceOf(r);
-  return `<div class="qitem ${r.status==='pending'?'pending':''}" data-qid="${esc(r.id)}">
-    <div class="qtop">${selectable?`<input type="checkbox" class="rowchk" data-check="${esc(r.id)}" ${_selRows.has(r.id)?"checked":""}>`:""}<span class="qtext">${esc(r.question)}</span>${skuChip(r.variant_sku)}</div>
+  return `<div class="qitem ${r.status==='pending'?'pending':''} ${heldBy?'lockedrow':''}" data-qid="${esc(r.id)}">
+    <div class="qtop">${selectable&&!heldBy?`<input type="checkbox" class="rowchk" data-check="${esc(r.id)}" ${_selRows.has(r.id)?"checked":""}>`:""}<span class="qtext">${esc(r.question)}</span>${skuChip(r.variant_sku)}</div>
     ${showProduct?`<div class="prodline">in ${prodChip(r)}</div>`:""}
     ${ans}
-    <div class="qmeta">${topicOf(r)!=="other"?`<span class="topic">${esc(topicOf(r))}</span>`:""}${src.link?`<a class="src2" href="${esc(src.link)}" target="_blank" rel="noopener">${esc(src.label)} ↗</a>`:`<span class="src2">${esc(src.label)}</span>`}${staleBadge(r)}<span class="stamp">${r.answered_by?esc(initials(r.answered_by))+" · ":""}${esc((r.last_verified_at||r.answered_at||r.created_at||"").slice(0,10))}${r.last_verified_at?" · last verified":""}</span></div>
-    <div class="qctrls">${ctrls}<button class="btn sm danger" data-del="${r.id}" style="margin-left:auto">Delete</button></div>
+    <div class="qmeta">${visChip}${topicOf(r)!=="other"?`<span class="topic">${esc(topicOf(r))}</span>`:""}${src.link?`<a class="src2" href="${esc(src.link)}" target="_blank" rel="noopener">${esc(src.label)} ↗</a>`:`<span class="src2">${esc(src.label)}</span>`}${staleBadge(r)}<span class="stamp">${r.answered_by?esc(initials(r.answered_by))+" · ":""}${esc((r.last_verified_at||r.answered_at||r.created_at||"").slice(0,10))}${r.last_verified_at?" · last verified":""}</span></div>
+    <div class="qctrls">${ctrls}</div>
   </div>`;
 }
 function wireItems(ql){
   ql.querySelectorAll("[data-ans]").forEach(inp=>inp.addEventListener("keydown", e=>{
     if(e.key==="Enter" && inp.value.trim()){ const src=ql.querySelector(`[data-src="${inp.dataset.ans}"]`); submitAnswer(inp.dataset.ans, inp.value.trim(), src?src.value.trim():""); }
   }));
-  ql.querySelectorAll("[data-appr]").forEach(c=>c.onchange=()=>approve(c.dataset.appr));
-  ql.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{ EDITING=b.dataset.edit; MOVING=null; refresh(); });
-  ql.querySelectorAll("[data-cancel]").forEach(b=>b.onclick=()=>{ EDITING=null; refresh(); });
-  ql.querySelectorAll("[data-move]").forEach(b=>b.onclick=()=>{ MOVING=b.dataset.move; EDITING=null; refresh(); });
-  ql.querySelectorAll("[data-mvcancel]").forEach(b=>b.onclick=()=>{ MOVING=null; refresh(); });
+  ql.querySelectorAll("[data-appr]").forEach(b=>b.onclick=()=>{ b.disabled=true; approve(b.dataset.appr); });
+  ql.querySelectorAll("[data-vis]").forEach(b=>b.onclick=()=>setVisibility(b.dataset.vis, b.dataset.set));
+  ql.querySelectorAll("[data-edit]").forEach(b=>b.onclick=async()=>{
+    b.disabled=true;
+    if(await acquireLock(b.dataset.edit)){ EDITING=b.dataset.edit; MOVING=null; await softRefresh(); }
+    else b.disabled=false;
+  });
+  ql.querySelectorAll("[data-cancel]").forEach(b=>b.onclick=()=>{ releaseLock(b.dataset.cancel); EDITING=null; refresh(); });
+  ql.querySelectorAll("[data-move]").forEach(b=>b.onclick=async()=>{
+    b.disabled=true;
+    if(await acquireLock(b.dataset.move)){ MOVING=b.dataset.move; EDITING=null; await softRefresh(); }
+    else b.disabled=false;
+  });
+  ql.querySelectorAll("[data-mvcancel]").forEach(b=>b.onclick=()=>{ releaseLock(b.dataset.mvcancel); MOVING=null; refresh(); });
+  ql.querySelectorAll("[data-gen]").forEach(b=>b.onclick=()=>generateAnswer(b));
   ql.querySelectorAll("[data-open]").forEach(a=>a.onclick=()=>openProduct(a.dataset.open));
   const mvIn = ql.querySelector("[data-mvq]");
   if(mvIn){
@@ -521,24 +582,48 @@ function renderList(){
   wireItems(ql);
   if(pb) wireBulk(list);
 }
+/* ---------- AI: notes -> customer-ready answer ---------- */
+async function generateAnswer(btn){
+  const id = btn.dataset.gen, which = btn.dataset.tgt;
+  const field = document.querySelector(which==="ea" ? `[data-ea="${id}"]` : `[data-ans="${id}"]`);
+  if(!field) return;
+  const notes = field.value.trim();
+  if(!notes){ toast("Type the facts first, then Generate", true); field.focus(); return; }
+  const r = ROWS.find(x=>x.id===id) || {};
+  const old = btn.textContent; btn.disabled = true; btn.textContent = "✨ Working…";
+  try {
+    const res = await fetch("/.netlify/functions/generate", {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ question:r.question||"", notes, product_title:r.product_title||"", skus:r.variant_sku||"", mode: which==="ea"?"tighten":"cs" })
+    });
+    if(!res.ok){ toast(await res.text(), true); return; }
+    const data = await res.json();
+    field.value = data.text; field.focus();
+    toast("Drafted — review, then save");
+  } catch(e){ toast("Generate failed: "+e.message, true); }
+  finally { btn.disabled = false; btn.textContent = old; }
+}
+/* ---------- mutations (lock-aware, conflict-safe) ---------- */
+async function onConflict(e){ toast(e.message, true); EDITING=null; MOVING=null; await softRefresh(); }
 async function editItem(id,q,a){
   if(!q){ toast("Question can't be empty", true); return; }
-  try { await apiPost({action:"edit", id, question:q, answer:a}); EDITING=null; await apiGet(); refresh(); toast("Saved"); }
-  catch(e){ toast("Save failed: "+e.message, true); }
+  try { await apiPost({action:"edit", id, question:q, answer:a, base_updated_at:baseStamp(id)}); EDITING=null; await apiGet(); refresh(); toast("Saved"); }
+  catch(e){ e.conflict ? onConflict(e) : toast("Save failed: "+e.message, true); }
 }
 async function reassign(id, p){
   if(!p) return;
-  try { await apiPost({action:"edit", id, product_id:p.id, product_title:p.title, variant_sku:""}); MOVING=null; await apiGet(); refresh(); toast("Moved to "+p.title); }
-  catch(e){ toast("Move failed: "+e.message, true); }
+  try { await apiPost({action:"edit", id, product_id:p.id, product_title:p.title, variant_sku:"", base_updated_at:baseStamp(id)}); MOVING=null; await apiGet(); refresh(); toast("Moved to "+p.title); }
+  catch(e){ e.conflict ? onConflict(e) : toast("Move failed: "+e.message, true); }
 }
 async function submitAnswer(id, answer, source_link){
-  try { await apiPost({ action:"answer", id, answer, source_link }); await apiGet(); refresh(); toast("Answer saved — pending approval"); }
-  catch(e){ toast("Save failed: "+e.message, true); }
+  try { await apiPost({ action:"answer", id, answer, source_link, base_updated_at:baseStamp(id) }); await apiGet(); refresh(); toast("Answer saved — pending approval"); }
+  catch(e){ e.conflict ? onConflict(e) : toast("Save failed: "+e.message, true); }
 }
 async function approve(id){
-  try { await apiPost({ action:"approve", id, lead_pin: LEAD_PIN }); await apiGet(); refresh(); toast("Approved"); }
+  try { await apiPost({ action:"approve", id, lead_pin: LEAD_PIN, base_updated_at:baseStamp(id) }); await apiGet(); refresh(); toast("Approved"); }
   catch(e){
     if(/PIN/i.test(e.message)){ const pin = prompt("Team Lead PIN required to approve:"); if(pin){ LEAD_PIN = pin; localStorage.setItem("faq_leadpin", pin); return approve(id); } refresh(); }
+    else if(e.conflict) onConflict(e);
     else { toast("Approve failed: "+e.message, true); refresh(); }
   }
 }
@@ -551,10 +636,35 @@ async function approveAll(ids){
     else toast("Bulk approve failed: "+e.message, true);
   }
 }
-async function mutate(body, okMsg){
-  try { await apiPost(body); await apiGet(); refresh(); toast(okMsg); }
-  catch(e){ toast("Action failed: "+e.message, true); }
+async function setVisibility(id, v){
+  const label = v==="customer" ? "Marked customer-safe" : v==="internal" ? "Marked internal only" : "Visibility cleared";
+  try { await apiPost({ action:"set_visibility", id, visibility:v, base_updated_at:baseStamp(id) }); await apiGet(); refresh(); toast(label); }
+  catch(e){ e.conflict ? onConflict(e) : toast("Failed: "+e.message, true); }
 }
+async function bulkVisibility(v, list){
+  const shown = new Set(list.map(r=>r.id));
+  const targets = [..._selRows].filter(id=>shown.has(id) && !lockedOut(ROWS.find(r=>r.id===id)||{}));
+  if(!targets.length){ toast("Nothing selected", true); return; }
+  if(!confirm(`Mark ${targets.length} question(s) as ${v==="customer"?"customer-safe":"internal only"}?`)) return;
+  let done=0, skipped=0;
+  for(const id of targets){
+    try { await apiPost({ action:"set_visibility", id, visibility:v, base_updated_at:baseStamp(id) }); done++; }
+    catch(e){ skipped++; }
+  }
+  _selRows.clear(); await apiGet(); refresh();
+  toast(`Updated ${done}${skipped?` · ${skipped} skipped`:""}`);
+}
+async function mutate(body, okMsg){
+  if(body.id && body.base_updated_at == null) body.base_updated_at = baseStamp(body.id);
+  try { await apiPost(body); await apiGet(); refresh(); toast(okMsg); }
+  catch(e){ e.conflict ? onConflict(e) : toast("Action failed: "+e.message, true); }
+}
+
+/* release any lock if the tab closes mid-edit */
+window.addEventListener("beforeunload", ()=>{
+  const id = EDITING || MOVING; if(!id) return;
+  try { navigator.sendBeacon(API, new Blob([JSON.stringify({ actor:USER_NAME, action:"unlock", id })], { type:"application/json" })); } catch(e){}
+});
 
 /* ---------- feedback wiring ---------- */
 document.getElementById("fbbtn").onclick = openFeedback;

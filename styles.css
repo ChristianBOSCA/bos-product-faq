@@ -178,6 +178,20 @@ main{max-width:860px;margin:0 auto;padding:24px 20px 80px}
 .bulkbar{display:flex;align-items:center;gap:10px;margin:0 0 12px;font-size:13px;flex-wrap:wrap}
 .bulkbar #selcount{color:var(--muted)}
 .rowchk{margin-right:4px}
+.lockbadge{font-size:12px;background:var(--amber-bg);color:var(--amber-fg);padding:3px 9px;border-radius:6px;font-weight:500}
+.qitem.lockedrow{background:#fffdf6;border-color:#e8d9b0}
+.qitem.lockedrow .qtext{color:var(--muted)}
+.btn.ai{border-color:#7f77dd;color:#534ab7}
+.btn.ai:hover{background:#eeedfe}
+.btn.ai:disabled{opacity:.6;cursor:default}
+.srcrow .btn.ai{white-space:nowrap}
+.vis{font-size:11px;padding:1px 7px;border-radius:6px;white-space:nowrap}
+.vis.cust{background:var(--teal-bg);color:var(--teal-fg)}
+.vis.int{background:#fcebeb;color:#a32d2d}
+.vis.unset{background:var(--gray-bg);color:var(--gray-fg)}
+.btn.cust{border-color:#1d9e75;color:#0f6e56}
+.btn.cust:hover{background:var(--teal-bg)}
+.approvehint{font-size:12px;color:var(--muted);background:var(--gray-bg);border-radius:6px;padding:7px 10px;margin:-4px 0 12px}
 .src2{font-size:11px;color:var(--faint)}
 a.src2{text-decoration:none;border-bottom:1px dotted var(--faint)}
 a.src2:hover{color:var(--orange);border-color:var(--orange)}

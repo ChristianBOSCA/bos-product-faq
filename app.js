@@ -267,11 +267,64 @@ qInput.addEventListener("input", () => {
   let html="";
   if(phits.length) html += `<div class="sgsec">Products</div>` + phits.map(([p])=>`<div class="row" data-id="${p.id}"><span class="ttl">${esc(p.title)}</span><span class="meta">${p.variants.length} SKUs · ${esc(p.type)}</span></div>`).join("");
   if(qhits.length) html += `<div class="sgsec">Questions</div>` + qhits.map(([r])=>`<div class="row qrowsg" data-pid="${esc(r.product_id)}" data-tab="${esc(r.status)}"><span class="ttl">${esc(r.question)}</span><span class="meta">${esc(titleFor(r.product_id))}</span></div>`).join("");
+  if(qtoks.length >= 3 || t.length > 14){
+    html += `<div class="sgsec">Smart search</div><div class="row smartrow" data-smart="1"><span class="ttl">✨ Find a verified answer for this</span><span class="meta">asks AI · searches every answer</span></div>`;
+  }
   if(!html) html = '<div class="row"><span class="meta">No match — try fewer letters</span></div>';
   suggBox.innerHTML = html; suggBox.classList.remove("hidden");
   suggBox.querySelectorAll(".row[data-id]").forEach(n=>n.onclick=()=>{ openProduct(n.dataset.id); suggBox.classList.add("hidden"); qInput.value=""; });
   suggBox.querySelectorAll(".qrowsg").forEach(n=>n.onclick=()=>{ openItem(n.dataset.pid, n.dataset.tab); suggBox.classList.add("hidden"); qInput.value=""; });
+  const sm = suggBox.querySelector("[data-smart]"); if(sm) sm.onclick=()=>smartSearch(t);
 });
+async function smartSearch(query){
+  suggBox.classList.add("hidden");
+  CURRENT = null; EDITING = null; MOVING = null;
+  const panel = document.getElementById("panel");
+  panel.innerHTML = `<div class="dash"><div class="qhead2"><span class="lab">Smart search</span><button class="btn sm" id="smBack">← Back</button></div>
+    <div class="smq">${esc(query)}</div><div id="smres"><div class="spin">Searching every answer…</div></div></div>`;
+  document.getElementById("smBack").onclick = goHome;
+  const res = document.getElementById("smres");
+  const qt = tok(query);
+  const scored = ROWS.filter(r=>(r.answer||"").trim()).map(r=>{
+    const hay = (r.question+" "+r.answer+" "+(r.product_title||"")).toLowerCase();
+    let s = 0; qt.forEach(w=>{ if(hay.includes(w)) s++; });
+    if(r.status==="approved") s += 0.5;
+    return [r,s];
+  }).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,25);
+  if(!scored.length){ res.innerHTML = smNone(); return; }
+  try {
+    const r = await fetch("/.netlify/functions/ask", {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ query, candidates: scored.map(([x])=>({ id:x.id, q:x.question, a:x.answer, product:x.product_title||"", status:x.status })) })
+    });
+    if(!r.ok){
+      const raw=(await r.text()).trim();
+      res.innerHTML = `<div class="spin">${esc(r.status===404?"Smart search isn't deployed yet":(raw.length>200||/^</.test(raw))?("Smart search unavailable (error "+r.status+")"):raw)}</div>`;
+      return;
+    }
+    const data = await r.json();
+    const hits = (data.matches||[]).map(m=>({ m, row: ROWS.find(x=>x.id===m.id) })).filter(x=>x.row);
+    if(!hits.length){ res.innerHTML = smNone(); return; }
+    res.innerHTML = hits.map(({m,row})=>{
+      const vis = (row.visibility||"")==="customer" ? `<span class="vis cust">✅ Customer-approved</span>`
+                : (row.visibility||"")==="internal" ? `<span class="vis int">🔒 Internal only</span>` : `<span class="vis unset">◻ Visibility not set</span>`;
+      const st = row.status==="approved" ? `<span class="vis cust">Approved</span>` : `<span class="vis unset">${esc(row.status)}</span>`;
+      return `<div class="qitem">
+        <div class="qtop"><span class="qtext">${esc(row.question)}</span></div>
+        <div class="prodline">in <a class="prodchip" data-open="${esc(row.product_id)}">${esc(row.product_title||row.product_id)}</a> · <span class="smwhy">${esc(m.why||"")}</span></div>
+        <div class="ans">${fmt(row.answer)}</div>
+        <div class="qmeta">${st}${vis}<span class="stamp">${row.answered_by?esc(initials(row.answered_by))+" · ":""}${esc((row.last_verified_at||row.answered_at||"").slice(0,10))}</span></div>
+        <div class="qctrls"><button class="btn sm" data-copy="${esc(row.id)}">Copy answer</button><button class="btn sm" data-goto="${esc(row.id)}">Open</button></div>
+      </div>`;
+    }).join("") + `<div class="dashhint">Only shows answers that already exist — nothing here is AI-written.</div>`;
+    res.querySelectorAll("[data-copy]").forEach(b=>b.onclick=()=>{ const r2=ROWS.find(x=>x.id===b.dataset.copy); if(r2) navigator.clipboard.writeText(r2.answer||"").then(()=>toast("Answer copied")).catch(()=>toast("Copy failed",true)); });
+    res.querySelectorAll("[data-goto]").forEach(b=>b.onclick=()=>{ const r2=ROWS.find(x=>x.id===b.dataset.goto); if(r2) openItem(r2.product_id, r2.status); });
+    res.querySelectorAll("[data-open]").forEach(a=>a.onclick=()=>openProduct(a.dataset.open));
+  } catch(e){ res.innerHTML = `<div class="spin">Smart search failed: ${esc(e.message)}</div>`; }
+}
+function smNone(){
+  return `<div class="smnone"><b>No existing answer covers this.</b><div class="dashhint" style="text-align:left;margin-top:6px">Search a product above to log it as a new question, so the next person finds it.</div></div>`;
+}
 qInput.addEventListener("keydown", e => {
   if(e.key==="Enter"){ const first = suggBox.querySelector(".row[data-id], .qrowsg"); if(first){ e.preventDefault(); first.click(); } }
 });

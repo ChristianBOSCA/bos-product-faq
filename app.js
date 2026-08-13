@@ -265,11 +265,11 @@ qInput.addEventListener("input", () => {
     return [r,m];
   }).filter(x=>x[1]>=need).sort((a,b)=>b[1]-a[1]).slice(0,6);
   let html="";
+  if(qtoks.length >= 3 || t.length > 14){
+    html += `<div class="row smartrow" data-smart="1"><span class="ttl">✨ Find a verified answer for this</span><span class="meta">asks AI · searches every answer</span></div>`;
+  }
   if(phits.length) html += `<div class="sgsec">Products</div>` + phits.map(([p])=>`<div class="row" data-id="${p.id}"><span class="ttl">${esc(p.title)}</span><span class="meta">${p.variants.length} SKUs · ${esc(p.type)}</span></div>`).join("");
   if(qhits.length) html += `<div class="sgsec">Questions</div>` + qhits.map(([r])=>`<div class="row qrowsg" data-pid="${esc(r.product_id)}" data-tab="${esc(r.status)}"><span class="ttl">${esc(r.question)}</span><span class="meta">${esc(titleFor(r.product_id))}</span></div>`).join("");
-  if(qtoks.length >= 3 || t.length > 14){
-    html += `<div class="sgsec">Smart search</div><div class="row smartrow" data-smart="1"><span class="ttl">✨ Find a verified answer for this</span><span class="meta">asks AI · searches every answer</span></div>`;
-  }
   if(!html) html = '<div class="row"><span class="meta">No match — try fewer letters</span></div>';
   suggBox.innerHTML = html; suggBox.classList.remove("hidden");
   suggBox.querySelectorAll(".row[data-id]").forEach(n=>n.onclick=()=>{ openProduct(n.dataset.id); suggBox.classList.add("hidden"); qInput.value=""; });

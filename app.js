@@ -488,7 +488,8 @@ function itemHTML(r, showProduct, selectable){
       <input class="ed-q" data-eq="${r.id}" value="${esc(r.question)}" />
       <label class="edlbl">Answer</label>
       <textarea class="ed-a" data-ea="${r.id}" rows="4" placeholder="Answer…">${esc(r.answer)}</textarea>
-      <div class="qctrls"><button class="btn sm primary" data-save="${r.id}">Save</button><button class="btn sm" data-cancel="${r.id}">Cancel</button><button class="btn sm ai" data-gen="${r.id}" data-tgt="ea" title="Rewrite into a customer-ready answer">✨ Polish</button>${r.status==="approved"?'<span class="hint">editing the answer sends it back for re-approval</span>':''}</div>
+      <div class="proposal" data-prop="${r.id}"></div>
+      <div class="qctrls"><button class="btn sm primary" data-save="${r.id}">Save</button><button class="btn sm" data-cancel="${r.id}">Cancel</button><button class="btn sm ai" data-gen="${r.id}" data-tgt="ea" title="Clean up the question and rewrite the answer">✨ Polish</button>${r.status==="approved"?'<span class="hint">editing the answer sends it back for re-approval</span>':''}</div>
     </div>`;
   }
   if(MOVING===r.id){

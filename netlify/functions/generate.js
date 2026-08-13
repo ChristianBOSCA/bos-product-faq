@@ -36,9 +36,13 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body||"{}"); } catch(e){ return text(400, "Bad JSON."); }
   const notes = String(body.notes||"").trim();
   const question = String(body.question||"").trim();
-  if(!notes) return text(400, "Nothing to work with — type the facts first.");
-
   const mode = ["tighten","polish"].includes(body.mode) ? body.mode : "cs";
+  // polish can run on a messy question alone (no answer yet); other modes need notes
+  if(mode === "polish"){
+    if(!notes && !question) return text(400, "Nothing to work with — add a question or some facts.");
+  } else if(!notes){
+    return text(400, "Nothing to work with — type the facts first.");
+  }
 
   /* polish mode: clean up BOTH the question and the answer, returned as JSON */
   if(mode === "polish"){
@@ -47,11 +51,14 @@ exports.handler = async (event) => {
 Rewrite the QUESTION as a clean, neutral FAQ question:
 - Strip greetings, names, filler and chatter ("Hey team", "does anyone know", "Thanks!", "Not a question I've seen before").
 - Strip "SKU: XXX" prefixes and "customer is asking" framing — keep the actual subject.
-- Phrase it as the customer would ask it, in one sentence, ending in a question mark.
+- Strip pasted URLs, tracking parameters and markdown link soup entirely, but keep any SKU, product name or figure they contained.
+- If the entry quotes existing copy or a previous answer, don't repeat it — capture only what is being ASKED.
+- Phrase it as the customer would ask it, in one sentence, ending in a question mark. If it genuinely asks two things, use one sentence with "and".
 - Keep the specific product/part and any figures or SKUs mentioned in the question.
 - If it's already clean, return it unchanged.
 
 Rewrite the ANSWER as a customer-ready reply:
+- If no answer was provided, return an empty string for "answer" — never invent one.
 - Use ONLY the facts given. Never invent specs, dimensions, weights, prices, compatibility or policies. If a needed fact is missing, write around it and add "[confirm: ...]".
 - 1-3 sentences, or a tight bullet list for multi-part specs. No greeting, no sign-off.
 - Plain, warm, confident. Keep exact figures, units and SKUs verbatim.
@@ -63,7 +70,7 @@ Return ONLY a JSON object, no prose, no code fence:
       body.product_title ? `Product: ${body.product_title}` : "",
       body.skus ? `Applies to SKU(s): ${body.skus}` : "",
       `Original question:\n${question || "(none)"}`,
-      `Original answer:\n${notes}`
+      `Original answer:\n${notes || "(none yet — leave \"answer\" empty)"}`
     ].filter(Boolean).join("\n\n");
     try {
       const r = await fetch("https://api.anthropic.com/v1/messages", {

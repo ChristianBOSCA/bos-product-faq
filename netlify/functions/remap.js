@@ -39,7 +39,8 @@ For each ITEM you get the question, its answer, the product it is currently file
 
 Choose the product the question is really about.
 - Prefer the actual machine/product being asked about, NOT an accessory, spare part, cable kit, footplate, flooring or "Parts #" listing — unless the question is specifically about that accessory.
-- If the question names a product or SKU, that wins.
+- If the question names a product or SKU, that wins — even if it asks about one of that product's parts. "the pulley wheels on the Functional Trainer" belongs to the Functional Trainer, not to a pulley-wheel listing.
+- Keep an entry with its product when it is product-specific (assembly video, box dimensions, warranty for that product). Only use "_general" for company-wide policy (shipping times, returns, payment).
 - If the current product is already correct, choose "keep".
 - If the question is generic (shipping, returns, policy, or no product is identifiable), choose "_general".
 - If no candidate is clearly right, choose "keep". Never guess.

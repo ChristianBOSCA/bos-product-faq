@@ -596,10 +596,12 @@ async function generateAnswer(btn){
   const field = document.querySelector(which==="ea" ? `[data-ea="${id}"]` : `[data-ans="${id}"]`);
   if(!field) return;
   const notes = field.value.trim();
-  if(!notes){ toast("Type the facts first, then Generate", true); field.focus(); return; }
   const r = ROWS.find(x=>x.id===id) || {};
   const qField = document.querySelector(`[data-eq="${id}"]`);
   const curQ = qField ? qField.value.trim() : (r.question||"");
+  const isPolish = which === "ea";
+  if(!notes && !isPolish){ toast("Type the facts first, then Generate", true); field.focus(); return; }
+  if(!notes && isPolish && !curQ){ toast("Nothing to clean up yet", true); return; }
   const old = btn.textContent; btn.disabled = true; btn.textContent = "✨ Working…";
   try {
     const res = await fetch("/.netlify/functions/generate", {
@@ -616,12 +618,15 @@ async function generateAnswer(btn){
       toast(msg, true); return;
     }
     const data = await res.json().catch(()=>null);
-    if(!data || (!data.text && !data.answer)){ toast("AI returned an unexpected response", true); return; }
-    field.value = data.answer || data.text; field.focus();
+    if(!data){ toast("AI returned an unexpected response", true); return; }
+    const newA = String(data.answer || data.text || "").trim();
+    if(newA){ field.value = newA; field.focus(); }
     const newQ = (data.question||"").trim();
     const norm = s => s.toLowerCase().replace(/\s+/g," ").replace(/[^a-z0-9 ?]/g,"").trim();
-    if(which==="ea" && qField && newQ && norm(newQ) !== norm(curQ)) showQuestionProposal(id, curQ, newQ);
-    toast("Drafted — review, then save");
+    const qChanged = isPolish && qField && newQ && norm(newQ) !== norm(curQ);
+    if(!newA && !qChanged){ toast("Nothing to change", true); return; }
+    if(qChanged) showQuestionProposal(id, curQ, newQ);
+    toast(newA ? "Drafted — review, then save" : "Question cleaned up — review below");
   } catch(e){ toast("Generate failed: "+e.message, true); }
   finally { btn.disabled = false; btn.textContent = old; }
 }

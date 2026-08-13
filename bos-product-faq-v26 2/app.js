@@ -596,8 +596,17 @@ async function generateAnswer(btn){
       method:"POST", headers:{ "Content-Type":"application/json" },
       body: JSON.stringify({ question:r.question||"", notes, product_title:r.product_title||"", skus:r.variant_sku||"", mode: which==="ea"?"tighten":"cs" })
     });
-    if(!res.ok){ toast(await res.text(), true); return; }
-    const data = await res.json();
+    if(!res.ok){
+      const raw = (await res.text()).trim();
+      const looksHtml = /^<|<!doctype/i.test(raw);
+      let msg;
+      if(res.status === 404) msg = "AI isn't deployed yet — add netlify/functions/generate.js";
+      else if(looksHtml || raw.length > 200) msg = `AI unavailable (error ${res.status})`;
+      else msg = raw || `AI error ${res.status}`;
+      toast(msg, true); return;
+    }
+    const data = await res.json().catch(()=>null);
+    if(!data || !data.text){ toast("AI returned an unexpected response", true); return; }
     field.value = data.text; field.focus();
     toast("Drafted — review, then save");
   } catch(e){ toast("Generate failed: "+e.message, true); }

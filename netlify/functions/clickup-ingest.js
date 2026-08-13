@@ -143,7 +143,7 @@ exports.handler = async () => {
       }
       const mt = match(content);
       const row = ["ck_"+m.id, mt.product_id, mt.product_title, mt.variant_sku, q, "clickup",
-        ans?"pending":"unanswered", ans, `https://app.clickup.com/${WORKSPACE}/v/c/${CHANNEL}`, "",
+        ans?"pending":"unanswered", ans, `https://app.clickup.com/${WORKSPACE}/chat/r/${CHANNEL}/t/${m.id}`, "",
         nameOf(uid), nowISO(mdate), ansBy, ansAt, "", ""];
       appends.push(row); created++;
     }

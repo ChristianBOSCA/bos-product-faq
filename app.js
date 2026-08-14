@@ -659,7 +659,7 @@ async function generateAnswer(btn){
   try {
     const res = await fetch("/.netlify/functions/generate", {
       method:"POST", headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ question:curQ, notes, product_title:r.product_title||"", skus:r.variant_sku||"", mode: which==="ea"?"polish":"cs" })
+      body: JSON.stringify({ question:curQ, notes, product_title:r.product_title||"", skus:r.variant_sku||"", handle:r.product_id||"", mode: which==="ea"?"polish":"cs" })
     });
     if(!res.ok){
       const raw = (await res.text()).trim();

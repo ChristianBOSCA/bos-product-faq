@@ -95,35 +95,60 @@ Return ONLY a JSON object, no prose, no code fence:
       } catch(e){ }
     }
 
-    const payload = [
+    /* The team's notes are the source of truth. The page reference exists only to fill
+     * gaps. Prompt rules alone were not enough — the model would happily swap a SKU from
+     * the notes for a different one it found on the page. So: if a SKU that WAS in the
+     * notes goes missing from the answer, the reference has overruled a human fact.
+     * Redo the polish with the reference removed, so only the notes can be used. */
+    const SKURE = /\b[A-Z][A-Z0-9]{1,}(?:-[A-Z0-9]{2,}){1,}\b/g;
+    const skusIn = s => [...new Set(String(s||"").match(SKURE)||[])];
+    const noteSkus = skusIn(notes);
+
+    const build = (ref) => [
       body.product_title ? `Product: ${body.product_title}` : "",
       body.skus ? `Applies to SKU(s): ${body.skus}` : "",
       `Original question:\n${question || "(none)"}`,
       `Original answer:\n${notes || "(none yet — leave \"answer\" empty)"}`,
-      pdp ? `PRODUCT PAGE REFERENCE (our own published page — trustworthy):\n${pdp}` : ""
+      ref ? `PRODUCT PAGE REFERENCE (our own published page — trustworthy):\n${ref}` : ""
     ].filter(Boolean).join("\n\n");
-    try {
+
+    async function runPolish(ref){
       const r = await fetch("https://api.anthropic.com/v1/messages", {
         method:"POST",
         headers:{ "content-type":"application/json", "x-api-key":key, "anthropic-version":"2023-06-01" },
-        body: JSON.stringify({ model: MODEL, max_tokens: MAX_TOKENS, system: sys, messages:[{ role:"user", content: payload }] })
+        body: JSON.stringify({ model: MODEL, max_tokens: MAX_TOKENS, system: sys, messages:[{ role:"user", content: build(ref) }] })
       });
-      if(!r.ok){
-        if(r.status === 401) return text(401, "Anthropic rejected the API key.");
-        if(r.status === 429) return text(429, "Rate limited — try again in a few seconds.");
-        return text(502, "AI error: " + (await r.text()).slice(0,200));
-      }
-      const data = await r.json();
-      let out = (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("").trim();
+      if(!r.ok) return { err: r.status, msg: (await r.text()).slice(0,200) };
+      let out = ((await r.json()).content||[]).filter(b=>b.type==="text").map(b=>b.text).join("").trim();
       out = out.replace(/^```(?:json)?\s*/i,"").replace(/\s*```$/,"").trim();
       let parsed = null;
       try { parsed = JSON.parse(out); } catch(e){
         const m = out.match(/\{[\s\S]*\}/);
         if(m){ try { parsed = JSON.parse(m[0]); } catch(e2){} }
       }
+      return { parsed };
+    }
+
+    try {
+      const res = await runPolish(pdp);
+      if(res.err){
+        if(res.err === 401) return text(401, "Anthropic rejected the API key.");
+        if(res.err === 429) return text(429, "Rate limited — try again in a few seconds.");
+        return text(502, "AI error: " + res.msg);
+      }
+      let parsed = res.parsed, usedRef = !!pdp, overruled = [];
+      if(pdp && parsed && typeof parsed.answer === "string" && noteSkus.length){
+        const up = parsed.answer.toUpperCase();
+        overruled = noteSkus.filter(s => !up.includes(s.toUpperCase()));
+        if(overruled.length){
+          const retry = await runPolish("");
+          if(retry.parsed && typeof retry.parsed.answer === "string"){ parsed = retry.parsed; usedRef = false; }
+        }
+      }
       if(!parsed || typeof parsed.answer !== "string") return text(502, "AI returned an unexpected format — try again.");
       return json(200, { question: String(parsed.question||question||"").trim(), answer: String(parsed.answer).trim(),
-                         sku: String(parsed.sku||"").trim(), model: MODEL });
+                         sku: String(parsed.sku||"").trim(), used_reference: usedRef,
+                         kept_notes: overruled.length ? overruled : undefined, model: MODEL });
     } catch(e){ return text(500, "AI request failed: " + (e.message||String(e))); }
   }
   const ctx = [

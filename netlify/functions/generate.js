@@ -57,20 +57,46 @@ Rewrite the QUESTION as a clean, neutral FAQ question:
 - Keep the specific product/part and any figures or SKUs mentioned in the question.
 - If it's already clean, return it unchanged.
 
+You may also be given PRODUCT PAGE REFERENCE — text from our own live product page. It is trustworthy.
+- If the internal answer is incomplete or trails off, and the PRODUCT PAGE REFERENCE contains the missing fact, use it to complete the answer.
+- Only use facts that literally appear in the reference. Do not infer, estimate or average.
+- If the needed fact is NOT in the notes and NOT in the reference, do not guess. End the answer with exactly: [not in our knowledge base — confirm with the product team]
+
 Rewrite the ANSWER as a customer-ready reply:
 - If no answer was provided, return an empty string for "answer" — never invent one.
-- Use ONLY the facts given. Never invent specs, dimensions, weights, prices, compatibility or policies. If a needed fact is missing, write around it and add "[confirm: ...]".
+- Use ONLY the facts given (notes + product page reference). Never invent specs, dimensions, weights, prices, compatibility or policies. If a needed fact is missing, write around it and add "[confirm: ...]".
 - 1-3 sentences, or a tight bullet list for multi-part specs. No greeting, no sign-off.
 - Plain, warm, confident. Keep exact figures, units and SKUs verbatim.
 - Answer the question directly in the first sentence.
 
 Return ONLY a JSON object, no prose, no code fence:
 {"question": "...", "answer": "..."}`;
+    let pdp = "";
+    const handle = String(body.handle||"").trim();
+    if(handle && handle !== "_general" && /^[a-z0-9-]+$/i.test(handle)){
+      try {
+        const store = process.env.SHOPIFY_STORE || "www.bellsofsteel.com";
+        const pr = await fetch(`https://${store}/products/${encodeURIComponent(handle)}.json`);
+        if(pr.ok){
+          const p = (await pr.json()).product || {};
+          const desc = String(p.body_html||"")
+            .replace(/<(script|style)[\s\S]*?<\/\1>/gi,"")
+            .replace(/<li>/gi,"\n- ").replace(/<\/(p|div|tr|h\d)>/gi,"\n").replace(/<br\s*\/?>/gi,"\n")
+            .replace(/<[^>]+>/g," ")
+            .replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+            .replace(/[ \t]+/g," ").replace(/\n{3,}/g,"\n\n").trim();
+          const vars = (p.variants||[]).map(v=>`${v.sku||"?"} — ${v.title||""}${v.weight?` — ${v.weight}${v.weight_unit||"lb"}`:""}`).join("\n");
+          pdp = [`Product page: ${p.title||handle}`, vars ? `Variants:\n${vars}` : "", desc ? `Description:\n${desc.slice(0,3500)}` : ""].filter(Boolean).join("\n\n");
+        }
+      } catch(e){ }
+    }
+
     const payload = [
       body.product_title ? `Product: ${body.product_title}` : "",
       body.skus ? `Applies to SKU(s): ${body.skus}` : "",
       `Original question:\n${question || "(none)"}`,
-      `Original answer:\n${notes || "(none yet — leave \"answer\" empty)"}`
+      `Original answer:\n${notes || "(none yet — leave \"answer\" empty)"}`,
+      pdp ? `PRODUCT PAGE REFERENCE (our own published page — trustworthy):\n${pdp}` : ""
     ].filter(Boolean).join("\n\n");
     try {
       const r = await fetch("https://api.anthropic.com/v1/messages", {

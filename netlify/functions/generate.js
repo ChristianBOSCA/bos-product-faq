@@ -51,6 +51,8 @@ exports.handler = async (event) => {
 Rewrite the QUESTION as a clean, neutral FAQ question:
 - Strip greetings, names, filler and chatter ("Hey team", "does anyone know", "Thanks!", "Not a question I've seen before").
 - Strip "SKU: XXX" prefixes and "customer is asking" framing — keep the actual subject.
+- Do NOT put SKU codes in the question. The SKU is recorded separately on the entry, so it is implicit. Name the product in plain words instead ("the Aluminum Handles with Bearings", not "(SHRT-ALN-HA)"). Report any SKU you found in the separate "sku" field instead.
+- Exception: keep the SKU in the question only when the question is literally about the code itself (e.g. "what is the SKU for the new pulley kit?").
 - Strip pasted URLs, tracking parameters and markdown link soup entirely, but keep any SKU, product name or figure they contained.
 - If the entry quotes existing copy or a previous answer, don't repeat it — capture only what is being ASKED.
 - Phrase it as the customer would ask it, in one sentence, ending in a question mark. If it genuinely asks two things, use one sentence with "and".
@@ -70,7 +72,7 @@ Rewrite the ANSWER as a customer-ready reply:
 - Answer the question directly in the first sentence.
 
 Return ONLY a JSON object, no prose, no code fence:
-{"question": "...", "answer": "..."}`;
+{"question": "...", "answer": "...", "sku": "<any SKU code the original question referred to, comma-separated, or empty>"}`;
     let pdp = "";
     const handle = String(body.handle||"").trim();
     if(handle && handle !== "_general" && /^[a-z0-9-]+$/i.test(handle)){
@@ -118,7 +120,8 @@ Return ONLY a JSON object, no prose, no code fence:
         if(m){ try { parsed = JSON.parse(m[0]); } catch(e2){} }
       }
       if(!parsed || typeof parsed.answer !== "string") return text(502, "AI returned an unexpected format — try again.");
-      return json(200, { question: String(parsed.question||question||"").trim(), answer: String(parsed.answer).trim(), model: MODEL });
+      return json(200, { question: String(parsed.question||question||"").trim(), answer: String(parsed.answer).trim(),
+                         sku: String(parsed.sku||"").trim(), model: MODEL });
     } catch(e){ return text(500, "AI request failed: " + (e.message||String(e))); }
   }
   const ctx = [

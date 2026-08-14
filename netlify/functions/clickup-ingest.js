@@ -13,6 +13,8 @@
  *   CLICKUP_BOT_IDS optional, comma-separated user ids to treat as bots/ignore
  */
 const { google } = require("googleapis");
+// Netlify exposed the site address as URL; Vercel exposes the host as VERCEL_URL.
+const SITE = process.env.URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
 
 const WORKSPACE = "8634432";
 const CHANNEL = "87g20-350617";
@@ -76,7 +78,7 @@ exports.handler = async () => {
   try {
     // catalog (for product matching)
     let catalog = [];
-    try { const c = await fetch(`${process.env.URL||""}/catalog.json`); catalog = (await c.json()).products || []; } catch(e){}
+    try { const c = await fetch(`${SITE}/catalog.json`); catalog = (await c.json()).products || []; } catch(e){}
     const match = buildMatcher(catalog);
 
     // team members -> names + bot detection

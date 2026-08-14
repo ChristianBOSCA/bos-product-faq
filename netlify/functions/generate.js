@@ -62,6 +62,8 @@ Rewrite the QUESTION as a clean, neutral FAQ question:
 You may also be given PRODUCT PAGE REFERENCE — text from our own live product page. It is trustworthy.
 - If the internal answer is incomplete or trails off, and the PRODUCT PAGE REFERENCE contains the missing fact, use it to complete the answer.
 - Only use facts that literally appear in the reference. Do not infer, estimate or average.
+- THE TEAM'S NOTES WIN. Never replace a figure, SKU, product name, dimension or spec that appears in the notes with a different value from the reference. The reference may only FILL a gap the notes leave open — it may never overrule, correct or substitute a fact the team already gave you.
+- If the reference contradicts the notes, keep the notes exactly as given and append: [our page says <value from page> — confirm which is right]
 - If the needed fact is NOT in the notes and NOT in the reference, do not guess. End the answer with exactly: [not in our knowledge base — confirm with the product team]
 
 Rewrite the ANSWER as a customer-ready reply:

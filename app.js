@@ -623,7 +623,7 @@ function wireItems(ql){
     if(await acquireLock(b.dataset.edit)){ EDITING=b.dataset.edit; MOVING=null; await softRefresh(); }
     else b.disabled=false;
   });
-  ql.querySelectorAll("[data-cancel]").forEach(b=>b.onclick=()=>{ releaseLock(b.dataset.cancel); EDITING=null; refresh(); });
+  ql.querySelectorAll("[data-cancel]").forEach(b=>b.onclick=()=>{ releaseLock(b.dataset.cancel); _pendingSku=null; EDITING=null; refresh(); });
   ql.querySelectorAll("[data-move]").forEach(b=>b.onclick=async()=>{
     b.disabled=true;
     if(await acquireLock(b.dataset.move)){ MOVING=b.dataset.move; EDITING=null; await softRefresh(); }
@@ -693,20 +693,29 @@ async function generateAnswer(btn){
     if(newA){ field.value = newA; field.focus(); }
     const newQ = (data.question||"").trim();
     const norm = s => s.toLowerCase().replace(/\s+/g," ").replace(/[^a-z0-9 ?]/g,"").trim();
+    let sku = "";
+    if(isPolish && !(r.variant_sku||"").trim() && data.sku){
+      const prod = CATALOG.find(p=>p.id===r.product_id);
+      const valid = ((prod&&prod.variants)||[]).map(v=>(v.sku||"").toUpperCase());
+      sku = String(data.sku).split(",").map(s=>s.trim()).filter(s=>s && valid.includes(s.toUpperCase())).join(",");
+    }
     const qChanged = isPolish && qField && newQ && norm(newQ) !== norm(curQ);
     if(!newA && !qChanged){ toast("Nothing to change", true); return; }
-    if(qChanged) showQuestionProposal(id, curQ, newQ);
+    if(qChanged) showQuestionProposal(id, curQ, newQ, sku);
+    else if(sku){ _pendingSku = sku; toast("SKU "+sku+" will be tagged on save"); }
     toast(newA ? "Drafted — review, then save" : "Question cleaned up — review below");
   } catch(e){ toast("Generate failed: "+e.message, true); }
   finally { busy(false); btn.disabled = false; btn.textContent = old; }
 }
-function showQuestionProposal(id, oldQ, newQ){
+let _pendingSku = null;
+function showQuestionProposal(id, oldQ, newQ, sku){
   const box = document.querySelector(`[data-prop="${id}"]`); if(!box) return;
   box.innerHTML = `
     <div class="propcard">
       <div class="prophead">Should we update the question too?</div>
       <div class="propold"><del>${esc(oldQ)}</del></div>
       <div class="propnew">${esc(newQ)}</div>
+      ${sku?`<div class="propsku">SKU moved out of the wording and tagged on the entry: <span class="sku">${esc(sku)}</span></div>`:""}
       <div class="propctrls">
         <button class="btn sm primary" data-pyes="${esc(id)}">Use new question</button>
         <button class="btn sm" data-pno="1">Keep original</button>
@@ -715,22 +724,27 @@ function showQuestionProposal(id, oldQ, newQ){
   box.querySelector("[data-pyes]").onclick = ()=>{
     const qf = document.querySelector(`[data-eq="${id}"]`);
     if(qf) qf.value = newQ;
-    box.innerHTML = `<div class="propdone">Question updated — remember to Save.</div>`;
+    if(sku) _pendingSku = sku;
+    box.innerHTML = `<div class="propdone">Question updated${sku?` · SKU ${esc(sku)} will be tagged`:""} — remember to Save.</div>`;
   };
-  box.querySelector("[data-pno]").onclick = ()=>{ box.innerHTML = ""; };
+  box.querySelector("[data-pno]").onclick = ()=>{ _pendingSku = null; box.innerHTML = ""; };
 }
 /* ---------- mutations (lock-aware, conflict-safe) ---------- */
 async function onConflict(e){ toast(e.message, true); EDITING=null; MOVING=null; await softRefresh(); }
 async function editItem(id,q,a){
   if(!q){ toast("Question can't be empty", true); return; }
-  try { await apiPost({action:"edit", id, question:q, answer:a, base_updated_at:baseStamp(id)}); EDITING=null; await apiGet(); refresh(); toast("Saved"); }
+  const body = {action:"edit", id, question:q, answer:a, base_updated_at:baseStamp(id)};
+  if(_pendingSku){ body.variant_sku = _pendingSku; }
+  try { await apiPost(body); _pendingSku=null; EDITING=null; await apiGet(); refresh(); toast("Saved"); }
   catch(e){ e.conflict ? onConflict(e) : toast("Save failed: "+e.message, true); }
 }
 async function saveAndApprove(id,q,a){
   if(!q){ toast("Question can't be empty", true); refresh(); return; }
   if(!a){ toast("Add an answer before approving", true); refresh(); return; }
+  const body2 = {action:"edit", id, question:q, answer:a, base_updated_at:baseStamp(id)};
+  if(_pendingSku){ body2.variant_sku = _pendingSku; }
   try {
-    await apiPost({action:"edit", id, question:q, answer:a, base_updated_at:baseStamp(id)});
+    await apiPost(body2); _pendingSku=null;
     await apiGet();
     await apiPost({action:"approve", id, lead_pin:LEAD_PIN, base_updated_at:baseStamp(id)});
     EDITING=null; await apiGet(); refresh(); toast("Saved & approved");

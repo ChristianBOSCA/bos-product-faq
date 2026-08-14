@@ -2,7 +2,7 @@
  * Open access (no account login): each person enters their name once for
  * attribution. Approving may optionally require a Team Lead PIN (if the site
  * is configured with one); the app asks for it the first time and remembers it. */
-const API = "/.netlify/functions/faq";
+const API = "/api/faq";
 let CATALOG = [];
 let CURRENT = null;      // current product object
 let ROWS = [];           // all FAQ rows from the sheet
@@ -72,13 +72,13 @@ document.getElementById("nameInput").addEventListener("keydown", e=>{ if(e.key==
 /* ---------- boot ----------
  * Uses the bundled catalog.json (complete export of all active products,
  * including ones hidden from the public feed). If a Shopify Admin token is
- * later configured, switch the first fetch to /.netlify/functions/catalog. */
+ * later configured, switch the first fetch to /api/catalog. */
 async function boot(){
   try {
     const res = await fetch("catalog.json?v=" + Date.now());
     CATALOG = (await res.json()).products || [];
   } catch(e){
-    try { const r = await fetch("/.netlify/functions/catalog"); CATALOG = (await r.json()).products || []; }
+    try { const r = await fetch("/api/catalog"); CATALOG = (await r.json()).products || []; }
     catch(e2){ toast("Could not load catalog", true); }
   }
   try { await apiGet(); } catch(e){ /* questions load for dashboard + global search */ }
@@ -293,7 +293,7 @@ async function smartSearch(query){
   }).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,25);
   if(!scored.length){ res.innerHTML = smNone(); return; }
   try {
-    const r = await fetch("/.netlify/functions/ask", {
+    const r = await fetch("/api/ask", {
       method:"POST", headers:{ "Content-Type":"application/json" },
       body: JSON.stringify({ query, candidates: scored.map(([x])=>({ id:x.id, q:x.question, a:x.answer, product:x.product_title||"", status:x.status })) })
     });
@@ -414,7 +414,7 @@ async function loadDocs(handle){
   if(!CURRENT) return;
   CURRENT._docs = [];
   if(handle){
-    try { const res = await fetch(`/.netlify/functions/docs?handle=${encodeURIComponent(handle)}`); if(res.ok){ const d = await res.json(); CURRENT._docs = d.manuals || []; } }
+    try { const res = await fetch(`/api/docs?handle=${encodeURIComponent(handle)}`); if(res.ok){ const d = await res.json(); CURRENT._docs = d.manuals || []; } }
     catch(e){ /* best-effort */ }
   }
   renderDocs();
@@ -674,7 +674,7 @@ async function generateAnswer(btn){
   const old = btn.textContent; btn.disabled = true; btn.textContent = "✨ Working…";
   busy(true, isPolish ? "Polishing — checking the product page…" : "Drafting answer…");
   try {
-    const res = await fetch("/.netlify/functions/generate", {
+    const res = await fetch("/api/generate", {
       method:"POST", headers:{ "Content-Type":"application/json" },
       body: JSON.stringify({ question:curQ, notes, product_title:r.product_title||"", skus:r.variant_sku||"", handle:r.product_id||"", mode: which==="ea"?"polish":"cs" })
     });
@@ -682,7 +682,7 @@ async function generateAnswer(btn){
       const raw = (await res.text()).trim();
       const looksHtml = /^<|<!doctype/i.test(raw);
       let msg;
-      if(res.status === 404) msg = "AI isn't deployed yet — add netlify/functions/generate.js";
+      if(res.status === 404) msg = "AI isn't deployed yet — add api/generate.js";
       else if(looksHtml || raw.length > 200) msg = `AI unavailable (error ${res.status})`;
       else msg = raw || `AI error ${res.status}`;
       toast(msg, true); return;

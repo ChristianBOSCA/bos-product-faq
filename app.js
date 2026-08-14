@@ -352,12 +352,26 @@ function routeVariant(product, text){
 }
 
 /* ---------- API ---------- */
+let _busy = 0;
+function busy(on, label){
+  _busy = Math.max(0, _busy + (on ? 1 : -1));
+  const el = document.getElementById("busy"); if(!el) return;
+  if(_busy > 0){ el.innerHTML = `<span class="spinner"></span>${esc(label||"Working…")}`; el.classList.remove("hidden"); }
+  else el.classList.add("hidden");
+}
 async function apiGet(){
-  const res = await fetch(API);
-  if(!res.ok) throw new Error(await res.text());
-  ROWS = (await res.json()).rows || [];
+  busy(true,"Loading…");
+  try {
+    const res = await fetch(API);
+    if(!res.ok) throw new Error(await res.text());
+    ROWS = (await res.json()).rows || [];
+  } finally { busy(false); }
 }
 async function apiPost(body){
+  const LBL = { add:"Saving…", answer:"Saving answer…", edit:"Saving…", approve:"Approving…", unapprove:"Updating…", delete:"Deleting…", set_visibility:"Updating…", lock:"Opening…" };
+  const lbl = LBL[body && body.action];
+  if(lbl) busy(true,lbl);
+  try {
   const res = await fetch(API, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ actor: USER_NAME, ...body }) });
   if(!res.ok){
     const raw = await res.text();
@@ -367,6 +381,7 @@ async function apiPost(body){
     throw err;
   }
   return res.json();
+  } finally { if(lbl) busy(false); }
 }
 /* ---------- locking helpers ---------- */
 const LOCK_TTL_MS = 10*60*1000;
@@ -549,7 +564,7 @@ function itemHTML(r, showProduct, selectable){
       <label class="edlbl">Answer</label>
       <textarea class="ed-a" data-ea="${r.id}" rows="4" placeholder="Answer…">${esc(r.answer)}</textarea>
       <div class="proposal" data-prop="${r.id}"></div>
-      <div class="qctrls"><button class="btn sm primary" data-save="${r.id}">Save</button><button class="btn sm" data-cancel="${r.id}">Cancel</button><button class="btn sm ai" data-gen="${r.id}" data-tgt="ea" title="Clean up the question and rewrite the answer">✨ Polish</button>${r.status==="approved"?'<span class="hint">editing the answer sends it back for re-approval</span>':''}</div>
+      <div class="qctrls"><button class="btn sm primary" data-save="${r.id}">Save</button><button class="btn sm cust" data-saveappr="${r.id}" title="Save this and mark it approved in one step">Save &amp; approve</button><button class="btn sm" data-cancel="${r.id}">Cancel</button><button class="btn sm ai" data-gen="${r.id}" data-tgt="ea" title="Clean up the question and rewrite the answer">✨ Polish</button>${r.status==="approved"?'<span class="hint">editing the answer sends it back for re-approval</span>':''}</div>
     </div>`;
   }
   if(MOVING===r.id){
@@ -629,6 +644,7 @@ function wireItems(ql){
     });
   }
   ql.querySelectorAll("[data-save]").forEach(b=>b.onclick=()=>{ const id=b.dataset.save; const q=ql.querySelector(`[data-eq="${id}"]`).value.trim(); const a=ql.querySelector(`[data-ea="${id}"]`).value.trim(); editItem(id,q,a); });
+  ql.querySelectorAll("[data-saveappr]").forEach(b=>b.onclick=()=>{ const id=b.dataset.saveappr; const q=ql.querySelector(`[data-eq="${id}"]`).value.trim(); const a=ql.querySelector(`[data-ea="${id}"]`).value.trim(); b.disabled=true; saveAndApprove(id,q,a); });
   ql.querySelectorAll("[data-copy]").forEach(b=>b.onclick=()=>{ const r=ROWS.find(x=>x.id===b.dataset.copy); if(r) navigator.clipboard.writeText(r.answer||"").then(()=>toast("Answer copied")).catch(()=>toast("Copy failed",true)); });
   ql.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ if(confirm("Delete this question?")) mutate({action:"delete", id:b.dataset.del}, "Deleted"); });
   ql.querySelectorAll("[data-check]").forEach(c=>c.onchange=()=>{ c.checked ? _selRows.add(c.dataset.check) : _selRows.delete(c.dataset.check); updateBulkBar(); });
@@ -656,6 +672,7 @@ async function generateAnswer(btn){
   if(!notes && !isPolish){ toast("Type the facts first, then Generate", true); field.focus(); return; }
   if(!notes && isPolish && !curQ){ toast("Nothing to clean up yet", true); return; }
   const old = btn.textContent; btn.disabled = true; btn.textContent = "✨ Working…";
+  busy(true, isPolish ? "Polishing — checking the product page…" : "Drafting answer…");
   try {
     const res = await fetch("/.netlify/functions/generate", {
       method:"POST", headers:{ "Content-Type":"application/json" },
@@ -681,7 +698,7 @@ async function generateAnswer(btn){
     if(qChanged) showQuestionProposal(id, curQ, newQ);
     toast(newA ? "Drafted — review, then save" : "Question cleaned up — review below");
   } catch(e){ toast("Generate failed: "+e.message, true); }
-  finally { btn.disabled = false; btn.textContent = old; }
+  finally { busy(false); btn.disabled = false; btn.textContent = old; }
 }
 function showQuestionProposal(id, oldQ, newQ){
   const box = document.querySelector(`[data-prop="${id}"]`); if(!box) return;
@@ -708,6 +725,24 @@ async function editItem(id,q,a){
   if(!q){ toast("Question can't be empty", true); return; }
   try { await apiPost({action:"edit", id, question:q, answer:a, base_updated_at:baseStamp(id)}); EDITING=null; await apiGet(); refresh(); toast("Saved"); }
   catch(e){ e.conflict ? onConflict(e) : toast("Save failed: "+e.message, true); }
+}
+async function saveAndApprove(id,q,a){
+  if(!q){ toast("Question can't be empty", true); refresh(); return; }
+  if(!a){ toast("Add an answer before approving", true); refresh(); return; }
+  try {
+    await apiPost({action:"edit", id, question:q, answer:a, base_updated_at:baseStamp(id)});
+    await apiGet();
+    await apiPost({action:"approve", id, lead_pin:LEAD_PIN, base_updated_at:baseStamp(id)});
+    EDITING=null; await apiGet(); refresh(); toast("Saved & approved");
+  } catch(e){
+    if(/PIN/i.test(e.message)){
+      const pin = prompt("Team Lead PIN required to approve:");
+      if(pin){ LEAD_PIN=pin; localStorage.setItem("faq_leadpin",pin); return saveAndApprove(id,q,a); }
+      EDITING=null; await apiGet(); refresh(); toast("Saved, not approved", true);
+    }
+    else if(e.conflict) onConflict(e);
+    else { toast("Failed: "+e.message, true); refresh(); }
+  }
 }
 async function reassign(id, p){
   if(!p) return;

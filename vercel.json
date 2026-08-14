@@ -1,0 +1,45 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/faq.js": {
+      "maxDuration": 30
+    },
+    "api/catalog.js": {
+      "maxDuration": 30
+    },
+    "api/generate.js": {
+      "maxDuration": 60
+    },
+    "api/ask.js": {
+      "maxDuration": 30
+    },
+    "api/docs.js": {
+      "maxDuration": 30
+    },
+    "api/remap.js": {
+      "maxDuration": 60
+    },
+    "api/clickup-ingest.js": {
+      "maxDuration": 60
+    },
+    "api/clickup-backfill.js": {
+      "maxDuration": 60
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/clickup-ingest",
+      "schedule": "0 8 * * *"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/.netlify/functions/:fn*",
+      "destination": "/api/:fn*"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

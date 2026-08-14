@@ -7,6 +7,8 @@
  * "ck_<id>" dedupe, so re-running is safe.
  */
 const { google } = require("googleapis");
+// Netlify exposed the site address as URL; Vercel exposes the host as VERCEL_URL.
+const SITE = process.env.URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
 const WORKSPACE="8634432", CHANNEL="87g20-350617", CK="https://api.clickup.com/api";
 const TAB="FAQ", LASTCOL="P";
 const COLS=["id","product_id","product_title","variant_sku","question","tags","status","answer","source_link","attachment_url","created_by","created_at","answered_by","answered_at","approved_by","last_verified_at"];
@@ -42,7 +44,7 @@ exports.handler = async () => {
   const botIds=new Set((process.env.CLICKUP_BOT_IDS||"").split(",").map(s=>s.trim()).filter(Boolean));
   const cutoff=Date.now()-DAYS_BACK*86400000;
   try{
-    let catalog=[]; try{ catalog=(await (await fetch(`${process.env.URL||""}/catalog.json`)).json()).products||[]; }catch(e){}
+    let catalog=[]; try{ catalog=(await (await fetch(`${SITE}/catalog.json`)).json()).products||[]; }catch(e){}
     const match=buildMatcher(catalog);
     const names={}; try{ const team=await ck(`/v2/team`,token); const t=(team.teams||[]).find(x=>String(x.id)===WORKSPACE)||(team.teams||[])[0]; (t?.members||[]).forEach(m=>{ const u=m.user||{}; names[u.id]=u.username||u.email||("user "+u.id); if(/bot|\bai\b|clickbot/i.test((u.username||"")+" "+(u.email||""))) botIds.add(String(u.id)); }); }catch(e){}
     const nameOf=id=>names[id]||("user "+id);

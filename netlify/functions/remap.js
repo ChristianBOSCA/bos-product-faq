@@ -15,6 +15,8 @@
  * Returns { next } so the caller can loop until done.
  */
 const { google } = require("googleapis");
+// Netlify exposed the site address as URL; Vercel exposes the host as VERCEL_URL.
+const SITE = process.env.URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
 
 const TAB = "FAQ", LASTCOL = "V";
 const C_ID=0, C_PID=1, C_PTITLE=2, C_Q=4, C_A=7;
@@ -58,7 +60,7 @@ exports.handler = async (event) => {
   const apply = p.apply === "1";
 
   try {
-    const cat = (await (await fetch(`${process.env.URL||""}/catalog.json`)).json()).products || [];
+    const cat = (await (await fetch(`${SITE}/catalog.json`)).json()).products || [];
     const products = cat.filter(x=>x.id !== "_general");
     const byId = {}; cat.forEach(x=>byId[x.id]=x);
 

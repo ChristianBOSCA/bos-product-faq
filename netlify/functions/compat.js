@@ -14,9 +14,12 @@ const T_RACKS = "Racks", T_ATT = "Attachments", T_MEAS = "Measurements", T_OUT =
 const RACK_COLS = ["id","name","is_bos","tubing_class","hole_type","hole_spacing","posts",
   "internal_width","no_side_holes","flat_feet","hole_rejects_our_pin","verify_individually",
   "source","notes"];
+/* mount_type and fits_racks are appended at the end on purpose: ensureTab
+ * extends the header row when new columns are added, and appending means the
+ * existing 12 columns of data never move. */
 const ATT_COLS = ["id","name","product_id","tubing_class","mount_points","min_posts",
   "needs_side_holes","needs_lower_crossmember","min_internal_width","max_internal_width",
-  "verified_by","notes"];
+  "verified_by","notes","mount_type","fits_racks"];
 const MEAS_COLS = ["id","status","subject_type","subject_id","subject_name","spec_key","why",
   "blocking","raised_by","raised_at","value","unit","measured_by","measured_at","photo_url","notes"];
 /* Outcome logging. "confirmed_fits" and "returned_didnt_fit" are deliberately
@@ -148,6 +151,48 @@ exports.handler = async (event) => {
         };
         await appendRow(sheets, id, T_MEAS, MEAS_COLS, rec);
         return json(200, { ok:true, id:rec.id });
+      }
+
+      /* The question itself was wrong. Not every gap is answerable — the Kraken
+       * is a bolt-on that mounts in several places, so "how many pins?" had no
+       * answer. Retiring the question is only half the fix; where the reason is
+       * a mis-modelled mount type, correct that too so it stops being asked. */
+      if(action === "invalidate_measurement"){
+        if(!body.id || !body.reason) return text(400, "Need the request id and a reason.");
+        const rows = await readTab(sheets, id, T_MEAS, MEAS_COLS);
+        const m = rows.find(r => String(r.id) === String(body.id));
+        if(!m) return text(404, "Measurement request not found.");
+        m.status = "invalid";
+        m.measured_by = actor;
+        m.measured_at = nowISO();
+        m.notes = (m.notes ? m.notes + " · " : "") + "not a valid question: " + String(body.reason).slice(0, 300);
+        await writeRow(sheets, id, T_MEAS, MEAS_COLS, m._row, m);
+
+        let fixed = null;
+        if(body.set_mount_type && String(m.subject_type).toLowerCase() === "attachment"){
+          const atts = await readTab(sheets, id, T_ATT, ATT_COLS);
+          const a = atts.find(x => String(x.id) === String(m.subject_id));
+          if(a){
+            a.mount_type = String(body.set_mount_type);
+            a.notes = (a.notes ? a.notes + " · " : "") + `mount_type set to ${a.mount_type} by ${actor}`;
+            await writeRow(sheets, id, T_ATT, ATT_COLS, a._row, a);
+            fixed = { attachment: a.id, mount_type: a.mount_type };
+          }
+        }
+        return json(200, { ok:true, fixed });
+      }
+
+      /* Reword a question that was aimed at the wrong thing. */
+      if(action === "amend_measurement"){
+        if(!body.id) return text(400, "Need the request id.");
+        const rows = await readTab(sheets, id, T_MEAS, MEAS_COLS);
+        const m = rows.find(r => String(r.id) === String(body.id));
+        if(!m) return text(404, "Measurement request not found.");
+        if(body.spec_key) m.spec_key = String(body.spec_key).trim();
+        if(body.why) m.why = String(body.why).slice(0, 400);
+        m.notes = (m.notes ? m.notes + " · " : "") + "amended by " + actor;
+        await writeRow(sheets, id, T_MEAS, MEAS_COLS, m._row, m);
+        return json(200, { ok:true });
       }
 
       /* Record a measurement and push it into the Racks/Attachments row. */

@@ -14,15 +14,15 @@ function check(name, got, want) {
 
 /* ---- fixtures ------------------------------------------------------- */
 const racks = {
-  hydra:      { name: "Hydra", is_bos: true, tubing_class: "true-3x3", posts: 4, internal_width: 43 },
-  hydraFlat:  { name: "Hydra (flat foot)", is_bos: true, tubing_class: "true-3x3", posts: 2, internal_width: 43, flat_feet: true },
-  manticore:  { name: "Manticore", is_bos: true, tubing_class: "true-3x3", posts: 4, internal_width: 43 },
-  oblivyon:   { name: "Oblivyon Tower", is_bos: true, tubing_class: "true-3x3", posts: 1, internal_width: 43 },
-  residential:{ name: "Residential Rack", is_bos: true, tubing_class: "60mm", posts: 4, internal_width: 43, no_side_holes: true },
-  dbRack:     { name: "Res Dumbbell Rack 2.0", is_bos: true, tubing_class: "60mm", posts: 1, internal_width: 43, verify_individually: true },
-  myrack:     { name: "Force USA MyRack", is_bos: false, tubing_class: "60mm", posts: 4, internal_width: 43, hole_rejects_our_pin: true },
-  repPr5000:  { name: "REP PR-5000", is_bos: false, tubing_class: "metric-3x3", posts: 4, internal_width: 43 },
-  rogueMonster:{ name: "Rogue Monster", is_bos: false, tubing_class: "true-3x3", posts: 4, internal_width: 43 }
+  hydra:      { id: "hydra", name: "Hydra", is_bos: true, tubing_class: "true-3x3", posts: 4, internal_width: 43 },
+  hydraFlat:  { id: "hydra-flatfoot", name: "Hydra (flat foot)", is_bos: true, tubing_class: "true-3x3", posts: 2, internal_width: 43, flat_feet: true },
+  manticore:  { id: "manticore", name: "Manticore", is_bos: true, tubing_class: "true-3x3", posts: 4, internal_width: 43 },
+  oblivyon:   { id: "oblivyon-tower", name: "Oblivyon Tower", is_bos: true, tubing_class: "true-3x3", posts: 1, internal_width: 43 },
+  residential:{ id: "residential", name: "Residential Rack", is_bos: true, tubing_class: "60mm", posts: 4, internal_width: 43, no_side_holes: true },
+  dbRack:     { id: "res-dumbbell-rack-2", name: "Res Dumbbell Rack 2.0", is_bos: true, tubing_class: "60mm", posts: 1, internal_width: 43, verify_individually: true },
+  myrack:     { id: "force-usa-myrack", name: "Force USA MyRack", is_bos: false, tubing_class: "60mm", posts: 4, internal_width: 43, hole_rejects_our_pin: true },
+  repPr5000:  { id: "rep-pr-5000", name: "REP PR-5000", is_bos: false, tubing_class: "metric-3x3", posts: 4, internal_width: 43 },
+  rogueMonster:{ id: "rogue-monster", name: "Rogue Monster", is_bos: false, tubing_class: "true-3x3", posts: 4, internal_width: 43 }
 };
 
 const att = {
@@ -131,6 +131,30 @@ const work = buildWorklist(many);
 check("worklist dedupes to 3 distinct jobs", work.length, 3);
 check("most-blocking job is first", work[0].blocking, 2);
 check("most-blocking job is the Kraken", work[0].subject_name, "Kraken");
+
+/* ---- mount type: pin vs bolt-on vs bespoke --------------------------- */
+console.log("\nMount type");
+
+const kraken = { name: "Kraken Rack Attachment", tubing_class: "true-3x3",
+  mount_type: "bespoke", mount_points: "?", needs_side_holes: "?", min_posts: 2,
+  fits_racks: "hydra,manticore" };
+
+check("bespoke attachment isn't asked for a pin count",
+  evaluate(kraken, racks.hydra, "").measurement_requests.some(m => m.spec_key === "mount_points"), false);
+check("bespoke on a listed rack fits",
+  evaluate(kraken, racks.hydra, "").verdict, VERDICT.FITS);
+check("bespoke on an unlisted BOS rack won't fit",
+  evaluate(kraken, racks.oblivyon, "").dimension, "not_listed");
+check("bespoke with no rack named asks which rack",
+  evaluate(kraken, null, "3x3 rack").verdict, VERDICT.NEED_SPEC);
+
+const boltOn = { name: "Bolt-on thing", tubing_class: "true-3x3", mount_type: "bolt-on",
+  mount_points: "?", needs_side_holes: false, min_posts: 1 };
+check("bolt-on isn't asked for a pin count",
+  evaluate(boltOn, racks.hydra, "").measurement_requests.length, 0);
+check("bolt-on on metric doesn't fail on pin spacing",
+  evaluate(boltOn, racks.repPr5000, "").dimension, "tubing");
+
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

@@ -20,8 +20,25 @@ const COLS = ["id","product_id","product_title","variant_sku","question","tags",
   "status","answer","source_link","attachment_url","created_by","created_at",
   "answered_by","answered_at","approved_by","last_verified_at",
   "locked_by","locked_at","updated_at",
-  "visibility","visibility_by","visibility_at"];
-const LASTCOL = "V"; // 22 columns
+  "visibility","visibility_by","visibility_at",
+  "archived_by","archived_at","archive_reason"];
+const LASTCOL = "Y"; // 25 columns
+
+/* status: unanswered -> pending -> approved, plus two ways out of circulation.
+ *
+ *   archived   the answer is fine, the question just no longer earns a place in
+ *              the working queue — time-bound, discontinued, superseded.
+ *              Hidden from the queue, still searchable, still readable.
+ *
+ *   dismissed  the question should never have been here. A tombstone: invisible
+ *              in the UI and excluded from search, but the ROW SURVIVES so the
+ *              ClickUp ingest still sees its id and skips it.
+ *
+ * Nothing is hard-deleted, and that is deliberate. The ingest dedupes on the
+ * row id (ck_<clickup message id>); deleting a row frees its id, so the next
+ * ingest run re-adds the exact question someone just removed. Every "delete"
+ * before this change was temporary without anyone realising. */
+const OUT_OF_CIRCULATION = ["archived", "dismissed"];
 /* visibility: "" = not reviewed (treat as internal), "customer" = cleared for
  * customer-facing use, "internal" = explicitly internal-only. Downstream
  * projects/agents must use ONLY rows where visibility === "customer". */
@@ -96,20 +113,9 @@ async function appendRow(sheets, id, obj){
   await sheets.spreadsheets.values.append({ spreadsheetId:id, range:`${TAB}!A2:${LASTCOL}`,
     valueInputOption:"RAW", insertDataOption:"INSERT_ROWS", requestBody:{ values:[objToRow(obj)] } });
 }
-let _gidCache;
-async function tabGid(sheets, id){
-  if(_gidCache!=null) return _gidCache;
-  const meta = await sheets.spreadsheets.get({ spreadsheetId:id, fields:"sheets.properties" });
-  const s = (meta.data.sheets||[]).find(s=>s.properties.title===TAB);
-  _gidCache = s ? s.properties.sheetId : 0;
-  return _gidCache;
-}
-async function deleteRow(sheets, id, rowNum){
-  const gid = await tabGid(sheets, id);
-  await sheets.spreadsheets.batchUpdate({ spreadsheetId:id, requestBody:{ requests:[
-    { deleteDimension:{ range:{ sheetId:gid, dimension:"ROWS", startIndex:rowNum-1, endIndex:rowNum } } }
-  ] } });
-}
+/* No row-deletion helper on purpose — see the status comment at the top.
+ * Removing a row frees its ClickUp id and the next ingest run puts the question
+ * straight back. Use archive or dismiss. */
 async function audit(sheets, id, actor, action, qid, detail){
   try { await sheets.spreadsheets.values.append({ spreadsheetId:id, range:`${AUDIT}!A:E`,
     valueInputOption:"RAW", insertDataOption:"INSERT_ROWS",
@@ -143,7 +149,8 @@ exports.handler = async (event, context) => {
           status:"unanswered", answer:"", source_link:"", attachment_url:"",
           created_by:actor, created_at:nowISO(), answered_by:"", answered_at:"", approved_by:"", last_verified_at:"",
           locked_by:"", locked_at:"", updated_at:nowISO(),
-          visibility:"", visibility_by:"", visibility_at:"" };
+          visibility:"", visibility_by:"", visibility_at:"",
+          archived_by:"", archived_at:"", archive_reason:"" };
         await appendRow(sheets, id, obj);
         await audit(sheets, id, actor, "add", obj.id, obj.question);
         return json(200, { ok:true });
@@ -194,7 +201,8 @@ exports.handler = async (event, context) => {
       }
 
       // --- every mutation below respects the lock and checks for stale writes ---
-      if(["answer","edit","approve","unapprove","delete","set_visibility"].includes(action)){
+      if(["answer","edit","approve","unapprove","delete","set_visibility",
+          "archive","dismiss","restore"].includes(action)){
         if(held) return conflict(`${held.by} is editing this right now — try again in a moment.`, { locked_by:held.by });
         if(body.base_updated_at != null && (o.updated_at||"") && body.base_updated_at !== o.updated_at){
           const who = o.answered_by || o.approved_by || "someone";
@@ -261,10 +269,36 @@ exports.handler = async (event, context) => {
         await audit(sheets, id, actor, "unapprove", o.id, "");
         return json(200, { ok:true });
       }
-      if(action === "delete"){
-        await deleteRow(sheets, id, target._row);
-        await audit(sheets, id, actor, "delete", o.id, o.question);
+      /* --- taking a question out of circulation ---
+       * "delete" is kept as an alias for "dismiss" so older clients (and the
+       * bulk bar) keep working, but it no longer removes the row. */
+      if(action === "archive" || action === "dismiss" || action === "delete"){
+        const mode = (action === "archive") ? "archived" : "dismissed";
+        if(OUT_OF_CIRCULATION.includes(o.status) && o.status === mode){
+          return json(200, { ok:true, noop:true });
+        }
+        o.status = mode;
+        o.archived_by = actor;
+        o.archived_at = nowISO();
+        o.archive_reason = String(body.reason || "").slice(0, 300);
+        stamp();
+        await writeRow(sheets, id, target._row, o);
+        await audit(sheets, id, actor, mode, o.id, o.archive_reason || o.question);
         return json(200, { ok:true });
+      }
+
+      /* Bring one back. Status is recomputed from the row rather than restored
+       * from memory: a question with an answer returns to pending for
+       * re-approval, never straight to approved. */
+      if(action === "restore"){
+        if(!OUT_OF_CIRCULATION.includes(o.status)) return json(200, { ok:true, noop:true });
+        o.status = (o.answer || "").trim() ? "pending" : "unanswered";
+        o.approved_by = ""; o.last_verified_at = "";
+        o.archived_by = ""; o.archived_at = ""; o.archive_reason = "";
+        stamp();
+        await writeRow(sheets, id, target._row, o);
+        await audit(sheets, id, actor, "restore", o.id, "-> " + o.status);
+        return json(200, { ok:true, status:o.status });
       }
       return text(400, "Unknown action.");
     }

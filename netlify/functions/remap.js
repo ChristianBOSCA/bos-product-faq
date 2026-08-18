@@ -19,7 +19,9 @@ const { google } = require("googleapis");
 const SITE = process.env.URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
 
 const TAB = "FAQ", LASTCOL = "V";
-const C_ID=0, C_PID=1, C_PTITLE=2, C_Q=4, C_A=7;
+const C_ID=0, C_PID=1, C_PTITLE=2, C_Q=4, C_STATUS=6, C_A=7;
+// Rows taken out of circulation are not worth spending AI calls re-filing.
+const OUT_OF_CIRCULATION = new Set(["archived", "dismissed"]);
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5-20251001";
 const ACCESSORY = /(^cables? for|^footplate|part #|parts #|spare part|^roll of|^rubber flooring|gym mat|on clearance|old version|^pad for|^casters|training app|hardware$)/i;
 const STOP = new Set(("the a an of to and is are for do does did with on in it its this that what how can could will would i my you your we our from at by as be been has have not no yes any all "+
@@ -86,7 +88,8 @@ exports.handler = async (event) => {
     const sheets = sheetsClient();
     const got = await sheets.spreadsheets.values.get({ spreadsheetId:sheetId, range:`${TAB}!A2:${LASTCOL}` });
     const rows = got.data.values || [];
-    const win = rows.map((r,i)=>({ r, row:i+2 })).slice(start, start+count).filter(o=>o.r[C_Q]);
+    const win = rows.map((r,i)=>({ r, row:i+2 })).slice(start, start+count)
+      .filter(o=>o.r[C_Q] && !OUT_OF_CIRCULATION.has((o.r[C_STATUS]||"").trim()));
 
     const items = win.map(o=>{
       const txt = (o.r[C_Q]||"") + " " + (o.r[C_A]||"");

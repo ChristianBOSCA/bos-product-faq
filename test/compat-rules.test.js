@@ -148,6 +148,15 @@ check("bespoke on an unlisted BOS rack won't fit",
 check("bespoke with no rack named asks which rack",
   evaluate(kraken, null, "3x3 rack").verdict, VERDICT.NEED_SPEC);
 
+/* Marking something bespoke without filling in the list is the likely mistake,
+ * and the wrong behaviour there is a confident DOESNT_FIT on every rack. */
+const bespokeNoList = { name: "Kraken", tubing_class: "true-3x3", mount_type: "bespoke",
+  mount_points: "?", needs_side_holes: "?", min_posts: 2, fits_racks: "" };
+const noList = evaluate(bespokeNoList, racks.hydra, "");
+check("bespoke with no list never says DOESNT_FIT", noList.verdict === VERDICT.DOESNT_FIT, false);
+check("bespoke with no list is not guaranteed", noList.guaranteed, false);
+check("bespoke with no list flags the missing list", noList.dimension, "not_listed");
+
 const boltOn = { name: "Bolt-on thing", tubing_class: "true-3x3", mount_type: "bolt-on",
   mount_points: "?", needs_side_holes: false, min_posts: 1 };
 check("bolt-on isn't asked for a pin count",

@@ -137,7 +137,6 @@
             '<option value="bespoke">it is bespoke — mounts in several places</option>' +
             '<option value="pin">it is pin-mounted</option>' +
           "</select>" +
-          '<button class="btn sm danger" data-mbadgo="' + esc(m.id) + '">Retire the question</button>' +
         "</div>" +
         /* Bespoke means "we go by a confirmed list", so the list has to be
          * captured at the same moment — otherwise the tool has nothing to
@@ -145,6 +144,9 @@
         '<div class="crow hidden" data-mfitswrap="' + esc(m.id) + '">' +
           '<input type="text" data-mfits="' + esc(m.id) + '" style="flex:1" ' +
             'placeholder="Racks it IS confirmed on, comma separated — e.g. hydra, manticore" />' +
+        "</div>" +
+        '<div class="crow">' +
+          '<button class="btn sm danger" data-mbadgo="' + esc(m.id) + '">Retire the question</button>' +
         "</div>" +
         "</div></div>";
   }

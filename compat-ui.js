@@ -138,7 +138,15 @@
             '<option value="pin">it is pin-mounted</option>' +
           "</select>" +
           '<button class="btn sm danger" data-mbadgo="' + esc(m.id) + '">Retire the question</button>' +
-        "</div></div></div>";
+        "</div>" +
+        /* Bespoke means "we go by a confirmed list", so the list has to be
+         * captured at the same moment — otherwise the tool has nothing to
+         * answer from and every rack comes back as "go ask someone". */
+        '<div class="crow hidden" data-mfitswrap="' + esc(m.id) + '">' +
+          '<input type="text" data-mfits="' + esc(m.id) + '" style="flex:1" ' +
+            'placeholder="Racks it IS confirmed on, comma separated — e.g. hydra, manticore" />' +
+        "</div>" +
+        "</div></div>";
   }
 
   function wireQueue() {
@@ -163,14 +171,29 @@
         if (box) box.classList.toggle("hidden");
       };
     });
+    /* Only bespoke needs the confirmed-rack list; show the field when it's
+     * picked so the other options stay a one-click retire. */
+    Array.prototype.forEach.call(document.querySelectorAll("[data-mtype]"), function (s) {
+      s.onchange = function () {
+        var wrap = document.querySelector('[data-mfitswrap="' + s.dataset.mtype + '"]');
+        if (wrap) wrap.classList.toggle("hidden", s.value !== "bespoke");
+      };
+    });
     Array.prototype.forEach.call(document.querySelectorAll("[data-mbadgo]"), function (b) {
       b.onclick = function () {
         var id = b.dataset.mbadgo;
         var reason = document.querySelector('[data-mreason="' + id + '"]').value.trim();
         if (!reason) { toast("Say why it doesn't apply", true); return; }
+        var mtype = document.querySelector('[data-mtype="' + id + '"]').value;
+        var fitsEl = document.querySelector('[data-mfits="' + id + '"]');
+        var fits = fitsEl ? fitsEl.value.trim() : "";
+        if (mtype === "bespoke" && !fits) {
+          toast("Bespoke goes by a confirmed list — name the racks it fits", true);
+          return;
+        }
         b.disabled = true;
         post({ action: "invalidate_measurement", id: id, reason: reason,
-               set_mount_type: document.querySelector('[data-mtype="' + id + '"]').value })
+               set_mount_type: mtype, set_fits_racks: fits })
           .then(function (r) {
             toast(r.fixed ? "Retired — and " + r.fixed.attachment + " is now " + r.fixed.mount_type
                           : "Question retired");

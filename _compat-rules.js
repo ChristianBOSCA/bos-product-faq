@@ -163,7 +163,13 @@
      * and say so, rather than inventing a derivation. */
     if (bespoke) {
       var fits = String(attachment.fits_racks || "").split(",").map(function (x) { return norm(x); }).filter(Boolean);
-      if (rack && fits.indexOf(norm(rack.id)) === -1) {
+      if (!fits.length) {
+        /* Marked bespoke but nobody has filled in the confirmed list yet. An
+         * empty list is "we haven't checked", not "it fits nothing" — saying
+         * DOESNT_FIT here would be a confident wrong answer on every rack. */
+        failures.push({ dimension: "not_listed", hard: false, needSpec: "confirmed rack list",
+          reason: `${attachment.name} mounts in a non-standard way and nobody has recorded which racks it's been confirmed on yet. Check with Christian before answering.` });
+      } else if (rack && fits.indexOf(norm(rack.id)) === -1) {
         failures.push({ dimension: "not_listed", hard: true,
           reason: `${attachment.name} mounts in a non-standard way, so we go by a confirmed list rather than dimensions — and ${rack.name} isn't on it.` });
       } else if (!rack) {

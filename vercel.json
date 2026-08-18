@@ -24,6 +24,9 @@
     },
     "api/clickup-backfill.js": {
       "maxDuration": 60
+    },
+    "api/compat.js": {
+      "maxDuration": 30
     }
   },
   "crons": [

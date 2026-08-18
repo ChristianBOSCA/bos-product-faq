@@ -42,6 +42,15 @@
     </div>
   </div>
 
+  <!-- Mode switch. Compatibility lives in its own section so the FAQ's app.js
+       and the checker can't interfere with each other. -->
+  <nav id="modes" class="modes hidden">
+    <button class="modebtn active" data-mode="faq">Product FAQ</button>
+    <button class="modebtn" data-mode="compat">Rack Compatibility</button>
+  </nav>
+
+  <div id="compat" class="hidden"></div>
+
   <div id="main" class="hidden">
     <div class="searchwrap">
       <input id="q" type="text" placeholder="Search SKU or product name (typos OK)…" autocomplete="off" />
@@ -75,5 +84,37 @@
 <div id="toast" class="toast hidden"></div>
 
 <script src="app.js"></script>
+<script src="_compat-rules.js"></script>
+<script src="compat-ui.js"></script>
+<script>
+/* Mode switching. app.js owns #main and never sees this; all we do is show one
+ * section or the other. The nav only appears once the name gate is passed,
+ * which app.js signals by unhiding #main. */
+(function () {
+  var nav = document.getElementById("modes");
+  var main = document.getElementById("main");
+  var compat = document.getElementById("compat");
+  var loaded = false;
+
+  function setMode(m) {
+    var isCompat = m === "compat";
+    main.classList.toggle("hidden", isCompat);
+    compat.classList.toggle("hidden", !isCompat);
+    Array.prototype.forEach.call(nav.querySelectorAll(".modebtn"), function (b) {
+      b.classList.toggle("active", b.dataset.mode === m);
+    });
+    if (isCompat && !loaded) { loaded = true; window.CompatUI.load(); }
+  }
+  Array.prototype.forEach.call(nav.querySelectorAll(".modebtn"), function (b) {
+    b.onclick = function () { setMode(b.dataset.mode); };
+  });
+
+  // Show the switcher as soon as the user is through the name gate.
+  new MutationObserver(function () {
+    if (!main.classList.contains("hidden")) nav.classList.remove("hidden");
+  }).observe(main, { attributes: true, attributeFilter: ["class"] });
+  if (!main.classList.contains("hidden")) nav.classList.remove("hidden");
+})();
+</script>
 </body>
 </html>

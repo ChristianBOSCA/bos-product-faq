@@ -174,9 +174,21 @@ exports.handler = async (event) => {
           const a = atts.find(x => String(x.id) === String(m.subject_id));
           if(a){
             a.mount_type = String(body.set_mount_type);
+            /* A bespoke attachment answers from its confirmed list, so the list
+             * has to come with the reclassification — otherwise the tool has no
+             * basis to answer on and just tells everyone to go ask. */
+            if(body.set_fits_racks != null && String(body.set_fits_racks).trim() !== ""){
+              a.fits_racks = String(body.set_fits_racks).split(",")
+                .map(s => s.trim().toLowerCase().replace(/\s+/g, "-")).filter(Boolean).join(",");
+            }
+            /* The specs that no longer apply are now noise — clear them so the
+             * queue doesn't keep asking and the rules don't read a stale "?". */
+            if(a.mount_type === "bespoke" || a.mount_type === "bolt-on"){
+              a.mount_points = ""; a.needs_side_holes = "";
+            }
             a.notes = (a.notes ? a.notes + " · " : "") + `mount_type set to ${a.mount_type} by ${actor}`;
             await writeRow(sheets, id, T_ATT, ATT_COLS, a._row, a);
-            fixed = { attachment: a.id, mount_type: a.mount_type };
+            fixed = { attachment: a.id, mount_type: a.mount_type, fits_racks: a.fits_racks || "" };
           }
         }
         return json(200, { ok:true, fixed });

@@ -113,6 +113,10 @@
   }
 
   function measRow(m) {
+    /* "Question is wrong" matters as much as "here is the answer". The Kraken
+     * is a bolt-on that mounts in several places, so asking for a pin count
+     * produced a question with no possible answer. Where the reason is a
+     * mis-modelled mount type, fixing that stops it being asked again. */
     return '<div class="cmeas">' +
       "<div><b>" + esc(m.subject_name) + "</b> — " + esc(String(m.spec_key).replace(/_/g, " ")) +
       (parseInt(m.blocking, 10) > 1 ? ' <span class="cbadge">' + esc(m.blocking) + " waiting</span>" : "") + "</div>" +
@@ -121,7 +125,20 @@
         '<input type="text" data-mval="' + esc(m.id) + '" placeholder="value" />' +
         '<input type="text" data-munit="' + esc(m.id) + '" placeholder="unit (in, mm, count)" value="' + esc(m.unit || "") + '" />' +
         '<button class="btn sm primary" data-msave="' + esc(m.id) + '">Save</button>' +
-      "</div></div>";
+        '<button class="btn sm" data-mbad="' + esc(m.id) + '">Question is wrong</button>' +
+      "</div>" +
+      '<div class="cbad hidden" data-mbadbox="' + esc(m.id) + '">' +
+        '<div class="chint">Why doesn\'t this question apply?</div>' +
+        '<div class="crow">' +
+          '<input type="text" data-mreason="' + esc(m.id) + '" placeholder="e.g. it is a bolt-on, not pinned" />' +
+          '<select data-mtype="' + esc(m.id) + '">' +
+            '<option value="">don\'t change how it mounts</option>' +
+            '<option value="bolt-on">it is bolt-on</option>' +
+            '<option value="bespoke">it is bespoke — mounts in several places</option>' +
+            '<option value="pin">it is pin-mounted</option>' +
+          "</select>" +
+          '<button class="btn sm danger" data-mbadgo="' + esc(m.id) + '">Retire the question</button>' +
+        "</div></div></div>";
   }
 
   function wireQueue() {
@@ -135,6 +152,28 @@
                unit: document.querySelector('[data-munit="' + id + '"]').value.trim() })
           .then(function (r) {
             toast(r.applied && r.applied.applied ? "Saved and written into the data" : "Saved — but not written back, check the request");
+            return load();
+          })
+          .catch(function (e) { toast(e.message, true); b.disabled = false; });
+      };
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-mbad]"), function (b) {
+      b.onclick = function () {
+        var box = document.querySelector('[data-mbadbox="' + b.dataset.mbad + '"]');
+        if (box) box.classList.toggle("hidden");
+      };
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-mbadgo]"), function (b) {
+      b.onclick = function () {
+        var id = b.dataset.mbadgo;
+        var reason = document.querySelector('[data-mreason="' + id + '"]').value.trim();
+        if (!reason) { toast("Say why it doesn't apply", true); return; }
+        b.disabled = true;
+        post({ action: "invalidate_measurement", id: id, reason: reason,
+               set_mount_type: document.querySelector('[data-mtype="' + id + '"]').value })
+          .then(function (r) {
+            toast(r.fixed ? "Retired — and " + r.fixed.attachment + " is now " + r.fixed.mount_type
+                          : "Question retired");
             return load();
           })
           .catch(function (e) { toast(e.message, true); b.disabled = false; });

@@ -95,7 +95,7 @@
             "</select></label>" +
         "</div>" +
         '<label>What did the customer say about their rack?' +
-          '<input id="cClaim" type="text" placeholder=\'e.g. "it\'s a 3x3 rack with 1 inch holes"\' value="' + esc(SEL.claim) + '" /></label>' +
+          '<input id="cClaim" type="text" placeholder="e.g. 3x3 rack with 1 inch holes, or Rogue Monster Lite" value="' + esc(SEL.claim) + '" /></label>' +
         '<div class="chint">Paste their words — the wording itself is evidence. "3×3" without "true" or "76.2" usually means a metric rack.</div>' +
         '<div id="cOut"></div>' +
       "</div>" +

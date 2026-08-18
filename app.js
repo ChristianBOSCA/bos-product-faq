@@ -138,16 +138,30 @@ let _selRows = new Set();
 function updateBulkBar(){
   const c = document.getElementById("selcount"); if(c) c.textContent = `${_selRows.size} selected`;
   const none = _selRows.size===0;
-  ["apprSel","delSel","visCust","visInt"].forEach(k=>{ const el=document.getElementById(k); if(el) el.disabled = none; });
+  ["apprSel","delSel","visCust","visInt","archSel","restoreSel"].forEach(k=>{ const el=document.getElementById(k); if(el) el.disabled = none; });
 }
 function bulkBarHTML(tab){
+  const out = (tab==="archived" || tab==="dismissed");
+  // On the archived/dismissed tabs the only bulk action that makes sense is
+  // putting things back.
+  if(out){
+    return `<div class="bulkbar">
+      <label class="check"><input type="checkbox" id="checkall"> Select all shown</label>
+      <span id="selcount">0 selected</span>
+      <button class="btn sm primary" id="restoreSel" disabled style="margin-left:auto" title="Put these back in the queue">↩ Restore selected</button>
+    </div>
+    <div class="approvehint">${tab==="archived"
+      ? "Archived questions keep their answers and stay searchable — they're just out of the working queue."
+      : "Dismissed questions are hidden everywhere, but the rows stay so the ClickUp sync knows not to re-add them."}</div>`;
+  }
   return `<div class="bulkbar">
     <label class="check"><input type="checkbox" id="checkall"> Select all shown</label>
     <span id="selcount">0 selected</span>
     ${tab==="pending"?`<button class="btn sm primary" id="apprSel" disabled style="margin-left:auto">✓ Approve selected</button>`:`<span style="margin-left:auto"></span>`}
     <button class="btn sm cust" id="visCust" disabled title="Clear for customer-facing use">Mark customer-safe</button>
     <button class="btn sm" id="visInt" disabled title="Keep internal only">Internal only</button>
-    <button class="btn sm danger" id="delSel" disabled>Delete selected</button>
+    <button class="btn sm" id="archSel" disabled title="Still true, just no longer needed in the queue">Archive selected</button>
+    <button class="btn sm danger" id="delSel" disabled title="Shouldn't be in here at all">Dismiss selected</button>
   </div>
   ${tab==="pending"?`<div class="approvehint">Two ways to approve: tick the boxes and use <b>✓ Approve selected</b> for a batch, or hit <b>✓ Approve</b> on any single question.</div>`:""}`;
 }
@@ -156,16 +170,19 @@ function wireBulk(list){
   const chkAll = document.getElementById("checkall");
   if(chkAll) chkAll.onclick = ()=>{ const on=chkAll.checked; list.forEach(r=>{ if(lockedOut(r)) return; on?_selRows.add(r.id):_selRows.delete(r.id); }); document.querySelectorAll("[data-check]").forEach(c=>c.checked=on); updateBulkBar(); };
   const aS=document.getElementById("apprSel"); if(aS) aS.onclick=()=>bulkAction("approve", list);
-  const dS=document.getElementById("delSel"); if(dS) dS.onclick=()=>bulkAction("delete", list);
+  const dS=document.getElementById("delSel"); if(dS) dS.onclick=()=>bulkAction("dismiss", list);
+  const arS=document.getElementById("archSel"); if(arS) arS.onclick=()=>bulkAction("archive", list);
+  const rS=document.getElementById("restoreSel"); if(rS) rS.onclick=()=>bulkAction("restore", list);
   const vC=document.getElementById("visCust"); if(vC) vC.onclick=()=>bulkVisibility("customer", list);
   const vI=document.getElementById("visInt"); if(vI) vI.onclick=()=>bulkVisibility("internal", list);
 }
 function refresh(){ if(CURRENT){ renderTabs(); renderList(); } else renderDashboard(); }
 function renderDashboard(){
   const panel = document.getElementById("panel");
-  const counts = { unanswered:0, pending:0, approved:0 };
+  const counts = { unanswered:0, pending:0, approved:0, archived:0, dismissed:0 };
   ROWS.forEach(r=>{ if(counts[r.status]!=null) counts[r.status]++; });
-  const defs = [["unanswered","Unanswered"],["pending","Pending approval"],["approved","Approved"]];
+  const defs = [["unanswered","Unanswered"],["pending","Pending approval"],["approved","Approved"],
+    ["archived","Archived"],["dismissed","Dismissed"]];
   let list = ROWS.filter(r=>r.status===GTAB);
   if(GTOPIC!=="all") list = list.filter(r=>topicOf(r)===GTOPIC);
   if(GTYPE!=="all")  list = list.filter(r=>typeOf(r)===GTYPE);
@@ -203,16 +220,26 @@ async function bulkAction(kind, list){
   const shown = new Set(list.map(r=>r.id));
   const targets = [..._selRows].filter(id=>shown.has(id) && !lockedOut(ROWS.find(r=>r.id===id)||{}));
   if(!targets.length){ toast("Nothing selected (locked rows are skipped)", true); return; }
-  if(!confirm(`${kind==="approve"?"Approve":"Delete"} ${targets.length} selected question(s)?${kind==="delete"?" This can't be undone.":""}`)) return;
+  const VERB = { approve:["Approve","Approved"], archive:["Archive","Archived"],
+                 dismiss:["Dismiss","Dismissed"], restore:["Restore","Restored"] };
+  const [ask, said] = VERB[kind] || ["Update","Updated"];
+  // Nothing here is destructive any more, so no "can't be undone" warning.
+  const note = kind==="dismiss" ? " They'll be hidden everywhere, and you can restore them from the Dismissed tab."
+             : kind==="archive" ? " They stay searchable, just out of the queue."
+             : "";
+  if(!confirm(`${ask} ${targets.length} selected question(s)?${note}`)) return;
   let done=0, skipped=0;
   try {
     for(const id of targets){
       const base = baseStamp(id);
-      try { await apiPost(kind==="approve" ? {action:"approve", id, lead_pin:LEAD_PIN, base_updated_at:base} : {action:"delete", id, base_updated_at:base}); done++; }
+      const payload = kind==="approve"
+        ? {action:"approve", id, lead_pin:LEAD_PIN, base_updated_at:base}
+        : {action:kind, id, base_updated_at:base};
+      try { await apiPost(payload); done++; }
       catch(err){ if(err.conflict){ skipped++; } else throw err; }
     }
     _selRows.clear(); await apiGet(); refresh();
-    toast(`${kind==="approve"?"Approved":"Deleted"} ${done}${skipped?` · ${skipped} skipped (in use)`:""}`);
+    toast(`${said} ${done}${skipped?` · ${skipped} skipped (in use)`:""}`);
   } catch(e){
     if(kind==="approve" && /PIN/i.test(e.message)){ const pin=prompt("Team Lead PIN to approve:"); if(pin){ LEAD_PIN=pin; localStorage.setItem("faq_leadpin",pin); return bulkAction(kind,list); } }
     else toast("Bulk action failed: "+e.message, true);
@@ -285,10 +312,13 @@ async function smartSearch(query){
   document.getElementById("smBack").onclick = goHome;
   const res = document.getElementById("smres");
   const qt = tok(query);
-  const scored = ROWS.filter(r=>(r.answer||"").trim()).map(r=>{
+  // Dismissed rows are tombstones — never surface them. Archived rows stay
+  // searchable (that's the whole difference) but rank below live answers.
+  const scored = ROWS.filter(r=>(r.answer||"").trim() && r.status!=="dismissed").map(r=>{
     const hay = (r.question+" "+r.answer+" "+(r.product_title||"")).toLowerCase();
     let s = 0; qt.forEach(w=>{ if(hay.includes(w)) s++; });
     if(r.status==="approved") s += 0.5;
+    if(r.status==="archived") s -= 0.5;
     return [r,s];
   }).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,25);
   if(!scored.length){ res.innerHTML = smNone(); return; }
@@ -368,7 +398,7 @@ async function apiGet(){
   } finally { busy(false); }
 }
 async function apiPost(body){
-  const LBL = { add:"Saving…", answer:"Saving answer…", edit:"Saving…", approve:"Approving…", unapprove:"Updating…", delete:"Deleting…", set_visibility:"Updating…", lock:"Opening…" };
+  const LBL = { add:"Saving…", answer:"Saving answer…", edit:"Saving…", approve:"Approving…", unapprove:"Updating…", delete:"Dismissing…", dismiss:"Dismissing…", archive:"Archiving…", restore:"Restoring…", set_visibility:"Updating…", lock:"Opening…" };
   const lbl = LBL[body && body.action];
   if(lbl) busy(true,lbl);
   try {
@@ -444,7 +474,8 @@ function renderDocs(){
   el.innerHTML = html;
 }
 function rowsForProduct(){ return ROWS.filter(r=>r.product_id===CURRENT.id); }
-function counts(){ const l=visibleRows(); return { unanswered:l.filter(r=>r.status==="unanswered").length, pending:l.filter(r=>r.status==="pending").length, approved:l.filter(r=>r.status==="approved").length }; }
+function counts(){ const l=visibleRows(); const c=(s)=>l.filter(r=>r.status===s).length;
+  return { unanswered:c("unanswered"), pending:c("pending"), approved:c("approved"), archived:c("archived"), dismissed:c("dismissed") }; }
 
 function renderProductShell(){
   const p = CURRENT;
@@ -505,10 +536,15 @@ function selectVariant(sku){
 }
 function renderTabs(){
   const c = counts();
+  // Archived/Dismissed only appear for this product once there's something in
+  // them — no point showing two empty tabs on every product.
   const defs = [["unanswered","Unanswered"],["pending","Pending approval"],["approved","Approved"]];
+  if(c.archived || TAB==="archived") defs.push(["archived","Archived"]);
+  if(c.dismissed || TAB==="dismissed") defs.push(["dismissed","Dismissed"]);
   document.getElementById("tabs").innerHTML = defs.map(([k,lab])=>`<button class="tab ${TAB===k?'active':''}" data-tab="${k}">${lab}<span class="ct">${c[k]}</span></button>`).join("");
   document.getElementById("tabs").querySelectorAll(".tab").forEach(b=>b.onclick=()=>{ TAB=b.dataset.tab; _selRows.clear(); renderTabs(); renderList(); });
-  document.getElementById("tablab").textContent = defs.find(d=>d[0]===TAB)[1];
+  const cur = defs.find(d=>d[0]===TAB);
+  document.getElementById("tablab").textContent = cur ? cur[1] : TAB;
 }
 function onNewQInput(){
   const v = document.getElementById("newq").value;
@@ -590,9 +626,17 @@ function itemHTML(r, showProduct, selectable){
   } else {
     ans = `<div class="ans">${fmt(r.answer)}</div>${r.source_link?`<div style="margin-top:4px"><a class="link" href="${esc(r.source_link)}" target="_blank" rel="noopener">source ↗</a></div>`:""}`;
   }
+  const outOf = (r.status==="archived" || r.status==="dismissed");
   let ctrls = "";
   if(heldBy){
     ctrls = `<span class="lockbadge">🔒 ${esc(initials(heldBy))} is editing — locked</span>`;
+  } else if(outOf){
+    // Out of circulation: the only forward action is putting it back.
+    const who = r.archived_by ? ` by ${esc(r.archived_by)}` : "";
+    const when = (r.archived_at||"").slice(0,10);
+    ctrls = `<span class="vis unset" title="${esc(r.archive_reason||"")}">${r.status==="archived"?"Archived":"Dismissed"}${who}${when?` · ${esc(when)}`:""}</span>`
+      + (r.archive_reason ? `<span class="hint">${esc(r.archive_reason)}</span>` : "")
+      + `<button class="btn sm primary" data-restore="${r.id}" style="margin-left:auto" title="Put this back in the queue">↩ Restore</button>`;
   } else {
     if(r.status==="pending") ctrls += `<button class="btn sm primary" data-appr="${r.id}" title="Verify this answer (moves it to Approved)">✓ Approve</button>`;
     if(r.status==="approved" && vis!=="customer") ctrls += `<button class="btn sm cust" data-vis="${r.id}" data-set="customer" title="Clear this for customer-facing use by other projects">Mark customer-safe</button>`;
@@ -601,7 +645,8 @@ function itemHTML(r, showProduct, selectable){
     ctrls += `<button class="btn sm" data-edit="${r.id}">Edit</button>`;
     ctrls += `<button class="btn sm" data-move="${r.id}">Move</button>`;
     if(r.status!=="unanswered") ctrls += `<button class="btn sm" data-copy="${r.id}">Copy</button>`;
-    ctrls += `<button class="btn sm danger" data-del="${r.id}" style="margin-left:auto">Delete</button>`;
+    ctrls += `<button class="btn sm" data-arch="${r.id}" style="margin-left:auto" title="Answer's still right, it just doesn't need to be in the queue">Archive</button>`;
+    ctrls += `<button class="btn sm danger" data-del="${r.id}" title="This shouldn't be in the FAQ at all">Dismiss</button>`;
   }
   const src = sourceOf(r);
   return `<div class="qitem ${r.status==='pending'?'pending':''} ${heldBy?'lockedrow':''}" data-qid="${esc(r.id)}">
@@ -646,7 +691,17 @@ function wireItems(ql){
   ql.querySelectorAll("[data-save]").forEach(b=>b.onclick=()=>{ const id=b.dataset.save; const q=ql.querySelector(`[data-eq="${id}"]`).value.trim(); const a=ql.querySelector(`[data-ea="${id}"]`).value.trim(); editItem(id,q,a); });
   ql.querySelectorAll("[data-saveappr]").forEach(b=>b.onclick=()=>{ const id=b.dataset.saveappr; const q=ql.querySelector(`[data-eq="${id}"]`).value.trim(); const a=ql.querySelector(`[data-ea="${id}"]`).value.trim(); b.disabled=true; saveAndApprove(id,q,a); });
   ql.querySelectorAll("[data-copy]").forEach(b=>b.onclick=()=>{ const r=ROWS.find(x=>x.id===b.dataset.copy); if(r) navigator.clipboard.writeText(r.answer||"").then(()=>toast("Answer copied")).catch(()=>toast("Copy failed",true)); });
-  ql.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ if(confirm("Delete this question?")) mutate({action:"delete", id:b.dataset.del}, "Deleted"); });
+  ql.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
+    const reason = prompt("Dismiss this question — it'll be hidden everywhere and the ClickUp sync won't re-add it.\n\nWhy? (optional)");
+    if(reason === null) return;   // cancelled
+    mutate({action:"dismiss", id:b.dataset.del, reason}, "Dismissed");
+  });
+  ql.querySelectorAll("[data-arch]").forEach(b=>b.onclick=()=>{
+    const reason = prompt("Archive this question — the answer stays searchable, it just leaves the queue.\n\nWhy? (optional)");
+    if(reason === null) return;
+    mutate({action:"archive", id:b.dataset.arch, reason}, "Archived");
+  });
+  ql.querySelectorAll("[data-restore]").forEach(b=>b.onclick=()=>mutate({action:"restore", id:b.dataset.restore}, "Restored"));
   ql.querySelectorAll("[data-check]").forEach(c=>c.onchange=()=>{ c.checked ? _selRows.add(c.dataset.check) : _selRows.delete(c.dataset.check); updateBulkBar(); });
 }
 function renderList(){

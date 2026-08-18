@@ -96,6 +96,30 @@ scheduled function. Vercel's free tier allows one run per day, which is what we
 were doing anyway. You can confirm it under **Settings → Cron Jobs** after the
 first deploy, or trigger it by hand by visiting `/api/clickup-ingest`.
 
+## Archive and Dismiss (added 17 Aug)
+
+The FAQ used to hard-delete rows. That looked like it worked, but the ClickUp
+ingest dedupes on the row id (`ck_<message id>`) — so deleting a row freed its id
+and the next ingest run put the question straight back. Every deletion was
+temporary and nobody knew.
+
+Two states replace it, and nothing is hard-deleted any more:
+
+- **Archive** — the answer is still right, the question just doesn't need to sit
+  in the working queue. Hidden from the queue, still searchable, still readable.
+- **Dismiss** — the question shouldn't be in the FAQ at all. Hidden everywhere
+  and excluded from search, but the row stays as a tombstone so the ingest sees
+  the id and skips it.
+
+Both are reversible from the **Archived** / **Dismissed** tabs. Restoring puts a
+question back as *pending* (or *unanswered* if it has no answer) — never straight
+back to approved, so a restored answer always gets looked at again.
+
+**On first deploy the Sheet migrates itself** from 22 columns to 25, adding
+`archived_by`, `archived_at` and `archive_reason`. This happens automatically on
+the first API call — `ensureHeaders` already handled exactly this when the sheet
+went from 16 columns to 22. No manual step, no data movement.
+
 ## Cost
 Free tier covers this comfortably: the site is static, the functions only run
 when someone clicks something, and the only paid dependency is the Anthropic key
